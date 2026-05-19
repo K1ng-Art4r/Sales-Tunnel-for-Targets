@@ -530,6 +530,13 @@ async def return_to_base_state(message: Message, state: FSMContext, text: str):
     await message.answer(text, reply_markup=persistent_main_keyboard())
 
 
+async def send_tool_nav_hint(message: Message):
+    await message.answer(
+        "Управление инструментом:",
+        reply_markup=tool_navigation_keyboard(),
+    )
+
+
 def is_personal_data_complete(personal_data: dict[str, str]) -> bool:
     website = personal_data.get("company_website", "").strip().lower()
     required_filled = all(
