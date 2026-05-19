@@ -606,13 +606,13 @@ async def open_tool_flow(message_or_callback: Message | CallbackQuery, state: FS
     if tool_name == "simulate":
         await send_simulate_mode_menu(message_or_callback, state)
         target = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
-        await target.answer(" ", reply_markup=tool_navigation_keyboard())
+        await target.answer("Управление инструментом:", reply_markup=tool_navigation_keyboard())
         return
 
     if tool_name == "valuation":
         await send_valuation_mode_menu(message_or_callback, state)
         target = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
-        await target.answer(" ", reply_markup=tool_navigation_keyboard())
+        await target.answer("Управление инструментом:", reply_markup=tool_navigation_keyboard())
         return
 
     if isinstance(message_or_callback, CallbackQuery):
