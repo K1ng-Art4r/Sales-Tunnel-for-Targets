@@ -42,11 +42,8 @@ from app.keyboards import (
     simulate_plus3_standardization_keyboard,
     simulate_growth_keyboard,
     simulate_mna_keyboard,
-    simulate_contact_field_keyboard,
     simulate_contacts_choice_keyboard,
-    simulate_precise_skip_keyboard,
     simulate_results_keyboard,
-    simulate_skip_question_keyboard,
     valuation_continue_keyboard,
     valuation_intro_keyboard,
     valuation_low_share_keyboard,
@@ -970,7 +967,7 @@ async def simulate_mode_express(callback: CallbackQuery, state: FSMContext):
         "Напишите свой ответ сообщением.\n"
         f"Например: {DEFAULT_EXPRESS_ACCOUNTANTS}",
         parse_mode="HTML",
-        reply_markup=simulate_skip_question_keyboard("accountants"),
+        
     )
     await callback.answer()
 
@@ -1632,7 +1629,7 @@ async def simulate_express_accountants(message: Message, state: FSMContext):
         "Напишите свой ответ сообщением.\n"
         f"Например: {DEFAULT_EXPRESS_SALARY}",
         parse_mode="HTML",
-        reply_markup=simulate_skip_question_keyboard("salary"),
+        
     )
 
 
@@ -1648,7 +1645,7 @@ async def simulate_express_skip_accountants(callback: CallbackQuery, state: FSMC
         "Напишите свой ответ сообщением.\n"
         f"Например: {DEFAULT_EXPRESS_SALARY}",
         parse_mode="HTML",
-        reply_markup=simulate_skip_question_keyboard("salary"),
+        
     )
     await callback.answer()
 
@@ -1789,7 +1786,7 @@ async def simulate_plus3_automation(callback: CallbackQuery, state: FSMContext):
         "Напишите свой ответ сообщением.\n"
         "Например: 35",
         parse_mode="HTML",
-        reply_markup=simulate_precise_skip_keyboard("simulate:precise:margin:skip"),
+        
     )
     await callback.answer()
 
@@ -1812,7 +1809,7 @@ async def simulate_plus3_advisory(callback: CallbackQuery, state: FSMContext):
         "Напишите свой ответ сообщением.\n"
         "Например: 120",
         parse_mode="HTML",
-        reply_markup=simulate_precise_skip_keyboard("simulate:precise:clients:skip"),
+        
     )
     await callback.answer()
 
@@ -1866,7 +1863,7 @@ async def simulate_contacts_share(callback: CallbackQuery, state: FSMContext):
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await callback.message.answer(
         "Введите ваше имя:",
-        reply_markup=None if force_full_contacts else simulate_contact_field_keyboard("simulate:contacts:name:skip"),
+        reply_markup=None,
     )
     await callback.answer()
 
@@ -1882,7 +1879,7 @@ async def simulate_contact_name(message: Message, state: FSMContext):
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await message.answer(
         "Введите ваш Email:",
-        reply_markup=None if force_full_contacts else simulate_contact_field_keyboard("simulate:contacts:email:skip"),
+        reply_markup=None,
     )
 
 
@@ -1899,7 +1896,7 @@ async def simulate_contact_name_skip(callback: CallbackQuery, state: FSMContext)
     await state.set_state(SimulateFlow.precise_contact_email)
     await callback.message.answer(
         "Введите ваш Email:",
-        reply_markup=simulate_contact_field_keyboard("simulate:contacts:email:skip"),
+        reply_markup=None,
     )
     await callback.answer()
 
@@ -1915,7 +1912,7 @@ async def simulate_contact_email(message: Message, state: FSMContext):
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await message.answer(
         "Введите ваш телефон:",
-        reply_markup=None if force_full_contacts else simulate_contact_field_keyboard("simulate:contacts:phone:skip"),
+        reply_markup=None,
     )
 
 
@@ -1932,7 +1929,7 @@ async def simulate_contact_email_skip(callback: CallbackQuery, state: FSMContext
     await state.set_state(SimulateFlow.precise_contact_phone)
     await callback.message.answer(
         "Введите ваш телефон:",
-        reply_markup=simulate_contact_field_keyboard("simulate:contacts:phone:skip"),
+        reply_markup=None,
     )
     await callback.answer()
 
@@ -1948,7 +1945,7 @@ async def simulate_contact_phone(message: Message, state: FSMContext):
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await message.answer(
         "Введите название вашей компании:",
-        reply_markup=None if force_full_contacts else simulate_contact_field_keyboard("simulate:contacts:company:skip"),
+        reply_markup=None,
     )
 
 
@@ -1965,7 +1962,7 @@ async def simulate_contact_phone_skip(callback: CallbackQuery, state: FSMContext
     await state.set_state(SimulateFlow.precise_contact_company)
     await callback.message.answer(
         "Введите название вашей компании:",
-        reply_markup=simulate_contact_field_keyboard("simulate:contacts:company:skip"),
+        reply_markup=None,
     )
     await callback.answer()
 
@@ -1981,9 +1978,7 @@ async def simulate_contact_company(message: Message, state: FSMContext):
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await message.answer(
         "Введите сайт вашей компании:",
-        reply_markup=website_optional_keyboard()
-        if force_full_contacts
-        else simulate_contact_field_keyboard("simulate:contacts:website:skip"),
+        reply_markup=website_optional_keyboard() if force_full_contacts else None,
     )
 
 
@@ -2000,7 +1995,7 @@ async def simulate_contact_company_skip(callback: CallbackQuery, state: FSMConte
     await state.set_state(SimulateFlow.precise_contact_website)
     await callback.message.answer(
         "Введите сайт вашей компании:",
-        reply_markup=simulate_contact_field_keyboard("simulate:contacts:website:skip"),
+        reply_markup=None,
     )
     await callback.answer()
 
