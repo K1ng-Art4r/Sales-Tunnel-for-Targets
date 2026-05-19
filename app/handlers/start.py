@@ -1,7 +1,7 @@
 import logging
 import re
 import asyncio
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -32,6 +32,7 @@ from app.keyboards import (
     meeting_waiting_keyboard,
     menu_keyboard,
     persistent_main_keyboard,
+    tool_navigation_keyboard,
     website_optional_keyboard,
     simulate_deep_assessment_keyboard,
     simulate_deep_wait_keyboard,
@@ -189,6 +190,8 @@ VALUATION_POST_RESULT_STATE = {
     ValuationFlow.precise_post_result.state,
 }
 VALUATION_IDLE_TASKS: dict[int, asyncio.Task] = {}
+SIMULATE_START_LOCKS: dict[int, datetime] = {}
+SIMULATE_START_LOCK_SECONDS = 5
 VALUATION_EXCEL_TEXT = (
     "🎯 Если вы серьёзно рассматриваете партнёрство с нашим участием в технологиях и финансировании, "
     "давайте заполним наш подробный Excel-инструмент для оценки сделки.\n"
@@ -488,6 +491,20 @@ async def send_simulate_mode_menu(target: Message | CallbackQuery, state: FSMCon
     )
 
 
+def is_simulate_start_locked(user_id: int) -> bool:
+    locked_until = SIMULATE_START_LOCKS.get(user_id)
+    if locked_until is None:
+        return False
+    if datetime.utcnow() >= locked_until:
+        SIMULATE_START_LOCKS.pop(user_id, None)
+        return False
+    return True
+
+
+def lock_simulate_start(user_id: int) -> None:
+    SIMULATE_START_LOCKS[user_id] = datetime.utcnow() + timedelta(seconds=SIMULATE_START_LOCK_SECONDS)
+
+
 async def send_valuation_mode_menu(target: Message | CallbackQuery, state: FSMContext):
     await state.clear()
     await state.set_state(ValuationFlow.mode_select)
@@ -514,6 +531,13 @@ async def ensure_simulate_consent(callback: CallbackQuery, state: FSMContext) ->
 async def return_to_base_state(message: Message, state: FSMContext, text: str):
     await state.clear()
     await message.answer(text, reply_markup=persistent_main_keyboard())
+
+
+async def send_tool_nav_hint(message: Message):
+    await message.answer(
+        "Управление инструментом:",
+        reply_markup=tool_navigation_keyboard(),
+    )
 
 
 def is_personal_data_complete(personal_data: dict[str, str]) -> bool:
@@ -584,10 +608,14 @@ async def open_tool_flow(message_or_callback: Message | CallbackQuery, state: FS
 
     if tool_name == "simulate":
         await send_simulate_mode_menu(message_or_callback, state)
+        target = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
+        await send_tool_nav_hint(target)
         return
 
     if tool_name == "valuation":
         await send_valuation_mode_menu(message_or_callback, state)
+        target = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
+        await send_tool_nav_hint(target)
         return
 
     if isinstance(message_or_callback, CallbackQuery):
@@ -606,19 +634,65 @@ async def cmd_start(message: Message, state: FSMContext):
     await send_onboarding_complete(message)
 
 
-@router.message(StateFilter(None), F.text == "Меню бота")
-async def open_menu(message: Message):
+@router.message(F.text == "Меню бота")
+async def open_menu(message: Message, state: FSMContext):
+    await state.clear()
     user_id = await get_db_user_id(message)
     await add_event(user_id, "menu_opened")
     await message.answer(MENU_TEXT, reply_markup=menu_keyboard())
 
 
-@router.message(StateFilter(None), F.text == "Калькулятор экономии")
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "🏠 В меню")
+async def tool_nav_home(message: Message, state: FSMContext):
+    await return_to_base_state(message, state, "Вернули вас в главное меню.")
+
+
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "❌ Отменить")
+async def tool_nav_cancel(message: Message, state: FSMContext):
+    await return_to_base_state(message, state, THANKS_TOOL_TEXT)
+
+
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "⏭ Пропустить")
+async def tool_nav_skip(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state == SimulateFlow.express_accountants.state:
+        await state.update_data(express_accountants=DEFAULT_EXPRESS_ACCOUNTANTS)
+        await state.set_state(SimulateFlow.express_salary)
+        await message.answer(
+            "2️⃣ Средняя зарплата бухгалтера (₽/мес, включая налоги)?\n\n"
+            f"Например: {DEFAULT_EXPRESS_SALARY}",
+        )
+        return
+    if current_state == SimulateFlow.express_salary.state:
+        await state.update_data(express_salary=DEFAULT_EXPRESS_SALARY)
+        await send_express_result(message, state)
+        return
+    await message.answer("На этом шаге пропуск не требуется.")
+
+
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "⬅️ Назад")
+async def tool_nav_back(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state == SimulateFlow.express_salary.state:
+        await state.set_state(SimulateFlow.express_accountants)
+        await message.answer(
+            "1️⃣ Сколько у вас бухгалтеров задействовано в операциях?\n"
+            f"Например: {DEFAULT_EXPRESS_ACCOUNTANTS}"
+        )
+        return
+    if current_state == SimulateFlow.express_accountants.state:
+        await message.answer("Вы уже на первом шаге экспресс-оценки.")
+        return
+    if current_state in {SimulateFlow.mode_select.state, ValuationFlow.mode_select.state}:
+        return
+    await message.answer("Для этого шага возврат пока не настроен.")
+
+@router.message(F.text == "Калькулятор экономии")
 async def open_simulate_from_keyboard(message: Message, state: FSMContext):
     await open_tool_flow(message, state, "simulate")
 
 
-@router.message(StateFilter(None), F.text.in_({"Сделка и рост", "Оценка стоимости фирмы (скоро)"}))
+@router.message(F.text.in_({"Сделка и рост", "Оценка стоимости фирмы (скоро)"}))
 async def open_valuation_from_keyboard(message: Message, state: FSMContext):
     await open_tool_flow(message, state, "valuation")
 
@@ -873,6 +947,15 @@ async def simulate_mode_express(callback: CallbackQuery, state: FSMContext):
         return
 
     user_id = await get_db_user_id(callback)
+    if is_simulate_start_locked(user_id):
+        await callback.answer("Экспресс-оценка уже запускается…", show_alert=False)
+        return
+    lock_simulate_start(user_id)
+
+    if await state.get_state() == SimulateFlow.express_accountants.state:
+        await callback.answer("Экспресс-оценка уже открыта 👇", show_alert=False)
+        return
+
     await add_event(user_id, "simulate_mode_selected", "express")
 
     await state.update_data(db_user_id=user_id)
@@ -1567,6 +1650,21 @@ async def simulate_express_skip_accountants(callback: CallbackQuery, state: FSMC
         parse_mode="HTML",
         reply_markup=simulate_skip_question_keyboard("salary"),
     )
+    await callback.answer()
+
+
+@router.callback_query(
+    F.data.in_(
+        {
+            "simulate:back",
+            "simulate:cancel",
+            "valuation:back",
+            "meeting:back",
+        }
+    )
+)
+async def universal_back_handler(callback: CallbackQuery, state: FSMContext):
+    await return_to_base_state(callback.message, state, "Ок, вернули вас в главное меню.")
     await callback.answer()
 
 
