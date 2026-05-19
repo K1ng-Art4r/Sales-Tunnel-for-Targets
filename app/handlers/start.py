@@ -606,13 +606,13 @@ async def open_tool_flow(message_or_callback: Message | CallbackQuery, state: FS
     if tool_name == "simulate":
         await send_simulate_mode_menu(message_or_callback, state)
         target = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
-        await send_tool_nav_hint(target)
+        await target.answer(" ", reply_markup=tool_navigation_keyboard())
         return
 
     if tool_name == "valuation":
         await send_valuation_mode_menu(message_or_callback, state)
         target = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
-        await send_tool_nav_hint(target)
+        await target.answer(" ", reply_markup=tool_navigation_keyboard())
         return
 
     if isinstance(message_or_callback, CallbackQuery):
@@ -641,7 +641,10 @@ async def open_menu(message: Message, state: FSMContext):
 
 @router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "🏠 В меню")
 async def tool_nav_home(message: Message, state: FSMContext):
-    await return_to_base_state(message, state, "Вернули вас в главное меню.")
+    await state.clear()
+    user_id = await get_db_user_id(message)
+    await add_event(user_id, "menu_opened")
+    await message.answer(MENU_TEXT, reply_markup=menu_keyboard())
 
 
 @router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "❌ Отменить")
@@ -663,6 +666,33 @@ async def tool_nav_skip(message: Message, state: FSMContext):
     if current_state == SimulateFlow.express_salary.state:
         await state.update_data(express_salary=DEFAULT_EXPRESS_SALARY)
         await send_express_result(message, state)
+        return
+    if current_state == SimulateFlow.precise_clients.state:
+        await state.update_data(precise_clients=120)
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), active_clients_count=120)
+        await state.set_state(SimulateFlow.precise_contacts)
+        await message.answer(
+            "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
+            parse_mode="HTML",
+            reply_markup=simulate_contacts_choice_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_contacts.state:
+        if (await state.get_data()).get("force_full_contacts", False):
+            await message.answer("В этом сценарии пропуск недоступен.")
+            return
+        await state.update_data(precise_contacts="")
+        await state.set_state(SimulateFlow.precise_standardization)
+        await ask_precise_standardization_question(message)
+        return
+    if current_state == SimulateFlow.precise_margin.state:
+        await state.update_data(precise_margin=35)
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), margin_percent=35)
+        await finalize_precise_assessment(message, state)
         return
     await message.answer("На этом шаге пропуск не требуется.")
 
