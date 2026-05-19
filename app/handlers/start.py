@@ -32,6 +32,7 @@ from app.keyboards import (
     meeting_waiting_keyboard,
     menu_keyboard,
     persistent_main_keyboard,
+    tool_navigation_keyboard,
     website_optional_keyboard,
     simulate_deep_assessment_keyboard,
     simulate_deep_wait_keyboard,
@@ -532,6 +533,13 @@ async def return_to_base_state(message: Message, state: FSMContext, text: str):
     await message.answer(text, reply_markup=persistent_main_keyboard())
 
 
+async def send_tool_nav_hint(message: Message):
+    await message.answer(
+        "Управление инструментом:",
+        reply_markup=tool_navigation_keyboard(),
+    )
+
+
 def is_personal_data_complete(personal_data: dict[str, str]) -> bool:
     website = personal_data.get("company_website", "").strip().lower()
     required_filled = all(
@@ -600,10 +608,14 @@ async def open_tool_flow(message_or_callback: Message | CallbackQuery, state: FS
 
     if tool_name == "simulate":
         await send_simulate_mode_menu(message_or_callback, state)
+        target = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
+        await send_tool_nav_hint(target)
         return
 
     if tool_name == "valuation":
         await send_valuation_mode_menu(message_or_callback, state)
+        target = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
+        await send_tool_nav_hint(target)
         return
 
     if isinstance(message_or_callback, CallbackQuery):
@@ -629,6 +641,51 @@ async def open_menu(message: Message, state: FSMContext):
     await add_event(user_id, "menu_opened")
     await message.answer(MENU_TEXT, reply_markup=menu_keyboard())
 
+
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "🏠 В меню")
+async def tool_nav_home(message: Message, state: FSMContext):
+    await return_to_base_state(message, state, "Вернули вас в главное меню.")
+
+
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "❌ Отменить")
+async def tool_nav_cancel(message: Message, state: FSMContext):
+    await return_to_base_state(message, state, THANKS_TOOL_TEXT)
+
+
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "⏭ Пропустить")
+async def tool_nav_skip(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state == SimulateFlow.express_accountants.state:
+        await state.update_data(express_accountants=DEFAULT_EXPRESS_ACCOUNTANTS)
+        await state.set_state(SimulateFlow.express_salary)
+        await message.answer(
+            "2️⃣ Средняя зарплата бухгалтера (₽/мес, включая налоги)?\n\n"
+            f"Например: {DEFAULT_EXPRESS_SALARY}",
+        )
+        return
+    if current_state == SimulateFlow.express_salary.state:
+        await state.update_data(express_salary=DEFAULT_EXPRESS_SALARY)
+        await send_express_result(message, state)
+        return
+    await message.answer("На этом шаге пропуск не требуется.")
+
+
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "⬅️ Назад")
+async def tool_nav_back(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state == SimulateFlow.express_salary.state:
+        await state.set_state(SimulateFlow.express_accountants)
+        await message.answer(
+            "1️⃣ Сколько у вас бухгалтеров задействовано в операциях?\n"
+            f"Например: {DEFAULT_EXPRESS_ACCOUNTANTS}"
+        )
+        return
+    if current_state == SimulateFlow.express_accountants.state:
+        await message.answer("Вы уже на первом шаге экспресс-оценки.")
+        return
+    if current_state in {SimulateFlow.mode_select.state, ValuationFlow.mode_select.state}:
+        return
+    await message.answer("Для этого шага возврат пока не настроен.")
 
 @router.message(F.text == "Калькулятор экономии")
 async def open_simulate_from_keyboard(message: Message, state: FSMContext):

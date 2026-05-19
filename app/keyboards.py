@@ -34,6 +34,18 @@ def persistent_main_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def tool_navigation_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🏠 В меню"), KeyboardButton(text="⬅️ Назад")],
+            [KeyboardButton(text="⏭ Пропустить"), KeyboardButton(text="❌ Отменить")],
+        ],
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="Управление инструментом",
+    )
+
+
 def menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
