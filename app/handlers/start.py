@@ -360,7 +360,7 @@ async def answer_stale_callback(callback: CallbackQuery, state: FSMContext, sect
     user_id = await get_db_user_id(callback)
     await add_event(user_id, "stale_or_unknown_callback", f"state={current_state};data={data}")
 
-    if current_state is None and is_tool_callback(data):
+    if is_tool_callback(data):
         await callback.answer()
         await callback.message.answer(INACTIVE_TOOL_BUTTON_TEXT, reply_markup=persistent_main_keyboard())
         return
@@ -757,6 +757,47 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.update_data(express_salary=DEFAULT_EXPRESS_SALARY)
         await send_express_result(message, state)
         return
+    if current_state == SimulateFlow.precise_advisory.state:
+        await state.update_data(plus3_advisory="10_20")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), advisory_band="10_20")
+        await state.set_state(SimulateFlow.precise_clients)
+        await message.answer(
+            "Приняли среднее значение: 10–20%.\n\n"
+            "4️⃣ Количество активных клиентов?\n\n"
+            "Напишите свой ответ сообщением.\n"
+            "Например: 120",
+            parse_mode="HTML",
+        )
+        return
+    if current_state == SimulateFlow.precise_standardization.state:
+        await state.update_data(plus3_standardization="medium")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), standardization_level="medium")
+        await state.set_state(SimulateFlow.precise_automation)
+        await message.answer(
+            "Приняли среднее значение: средняя стандартизация.\n\n"
+            "6️⃣ Используете ли вы сейчас какие-то инструменты автоматизации?\n\n",
+            parse_mode="HTML",
+            reply_markup=simulate_plus3_automation_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_automation.state:
+        await state.update_data(plus3_automation="partial")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), automation_level="partial")
+        await state.set_state(SimulateFlow.precise_margin)
+        await message.answer(
+            "Приняли среднее значение: частичная автоматизация.\n\n"
+            "7️⃣ Текущая валовая маржа (%)?\n\n"
+            "Напишите свой ответ сообщением.\n"
+            "Например: 35",
+            parse_mode="HTML",
+        )
+        return
     if current_state == SimulateFlow.precise_clients.state:
         await state.update_data(precise_clients=120)
         user_id = (await state.get_data()).get("db_user_id")
@@ -783,6 +824,30 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         if user_id:
             await save_funnel_fields(int(user_id), margin_percent=35)
         await finalize_precise_assessment(message, state)
+        return
+    if current_state == SimulateFlow.precise_growth.state:
+        await state.update_data(post_growth="normal")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), growth_band="normal")
+        await state.set_state(SimulateFlow.precise_mna)
+        await message.answer(
+            "Приняли среднее значение: обычный рост +5–20%.\n\n"
+            "Рассматриваете ли вы M&A / привлечение инвестиций?",
+            reply_markup=simulate_mna_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_mna.state:
+        await state.update_data(post_mna="no")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), mna_interest="no")
+        await state.set_state(SimulateFlow.precise_wait_excel)
+        await message.answer(
+            "Приняли среднее значение: нет.\n\n"
+            "🎯 Серьёзно рассматриваете внедрение? Загрузите Excel — получите полный бизнес-кейс от нашей команды.",
+            reply_markup=simulate_deep_assessment_keyboard(),
+        )
         return
     await message.answer("На этом шаге пропуск не требуется.")
 
