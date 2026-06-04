@@ -66,20 +66,6 @@ def website_optional_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def tool_consent_keyboard(nda_checked: bool, terms_checked: bool, tool_name: str) -> InlineKeyboardMarkup:
-    nda_icon = "✅" if nda_checked else "⬜"
-    terms_icon = "✅" if terms_checked else "⬜"
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=f"{nda_icon} NDA from AIVEL side", callback_data="consent:toggle:nda")],
-            [InlineKeyboardButton(text=f"{terms_icon} Terms + Privacy + Marketing", callback_data="consent:toggle:terms")],
-            [InlineKeyboardButton(text="Соглашаюсь", callback_data=f"consent:submit:{tool_name}")],
-            [InlineKeyboardButton(text="Назад", callback_data="consent:back")],
-        ]
-    )
-
-
 def simulate_mode_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -99,51 +85,10 @@ def simulate_results_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def simulate_skip_question_keyboard(question_key: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[])
-
-
-def simulate_precise_skip_keyboard(callback_data: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[])
-
-
 def simulate_contacts_choice_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Поделиться", callback_data="simulate:contacts:share")],
-        ]
-    )
-
-
-def simulate_contact_field_keyboard(skip_callback: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[])
-
-
-def simulate_precise_ops_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="40-50%", callback_data="simulate:precise:ops:40_50")],
-            [InlineKeyboardButton(text="50-70%", callback_data="simulate:precise:ops:50_70")],
-            [InlineKeyboardButton(text="70%+", callback_data="simulate:precise:ops:70_plus")],
-        ]
-    )
-
-
-def simulate_precise_complex_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Да, много (>30%)", callback_data="simulate:precise:complex:many")],
-            [InlineKeyboardButton(text="Некоторые (10–30%)", callback_data="simulate:precise:complex:some")],
-            [InlineKeyboardButton(text="Мало (<10%)", callback_data="simulate:precise:complex:few")],
-        ]
-    )
-
-
-def simulate_precise_results_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="📅 Записаться на встречу", callback_data="stub:book_meeting")],
-            [InlineKeyboardButton(text="📈 Хотите точнее? +5 вопросов", callback_data="simulate:precise:more5")],
         ]
     )
 
@@ -445,69 +390,6 @@ def valuation_faq_topics_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="Внедрение ИИ", callback_data="valuation:faq:topic:ai")],
             [InlineKeyboardButton(text="Что меняется в фирме", callback_data="valuation:faq:topic:changes")],
             [InlineKeyboardButton(text="Юридические вопросы", callback_data="valuation:faq:topic:legal")],
-        ]
-    )
-
-
-def valuation_faq_price_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Как оценивается моя фирма?", callback_data="valuation:faq:q:price_calc")],
-            [InlineKeyboardButton(text="А если у меня долги?", callback_data="valuation:faq:q:price_debt")],
-            [InlineKeyboardButton(text="Сколько я получу за 25%?", callback_data="valuation:faq:q:price_25")],
-            [InlineKeyboardButton(text="Cash-In vs Cash-Out — что выгоднее?", callback_data="valuation:faq:q:price_cash")],
-            [InlineKeyboardButton(text="↩️ К темам", callback_data="valuation:faq:topics")],
-        ]
-    )
-
-
-def valuation_faq_roles_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Что изменится в управлении?", callback_data="valuation:faq:q:roles_mgmt")],
-            [InlineKeyboardButton(text="Могут ли меня уволить?", callback_data="valuation:faq:q:roles_fire")],
-            [InlineKeyboardButton(text="↩️ К темам", callback_data="valuation:faq:topics")],
-        ]
-    )
-
-
-def valuation_faq_process_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Шаги от знакомства до сделки", callback_data="valuation:faq:q:process_steps")],
-            [InlineKeyboardButton(text="А можно быстрее?", callback_data="valuation:faq:q:process_fast")],
-            [InlineKeyboardButton(text="↩️ К темам", callback_data="valuation:faq:topics")],
-        ]
-    )
-
-
-def valuation_faq_ai_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Как быстро заработает ИИ?", callback_data="valuation:faq:q:ai_speed")],
-            [InlineKeyboardButton(text="Сколько стоит внедрение?", callback_data="valuation:faq:q:ai_cost")],
-            [InlineKeyboardButton(text="Что автоматизируется?", callback_data="valuation:faq:q:ai_scope")],
-            [InlineKeyboardButton(text="↩️ К темам", callback_data="valuation:faq:topics")],
-        ]
-    )
-
-
-def valuation_faq_changes_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Что изменится для моих клиентов?", callback_data="valuation:faq:q:changes_clients")],
-            [InlineKeyboardButton(text="А что с моей командой?", callback_data="valuation:faq:q:changes_team")],
-            [InlineKeyboardButton(text="↩️ К темам", callback_data="valuation:faq:topics")],
-        ]
-    )
-
-
-def valuation_faq_legal_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Как юридически оформлена сделка: документы, права и защита?", callback_data="valuation:faq:q:legal_structure")],
-            [InlineKeyboardButton(text="А если я захочу выйти?", callback_data="valuation:faq:q:legal_exit")],
-            [InlineKeyboardButton(text="↩️ К темам", callback_data="valuation:faq:topics")],
         ]
     )
 

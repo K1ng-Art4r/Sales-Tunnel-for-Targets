@@ -1,10 +1,6 @@
 from aiogram.fsm.state import State, StatesGroup
 
 
-class ToolConsentFlow(StatesGroup):
-    waiting = State()
-
-
 class SimulateFlow(StatesGroup):
     mode_select = State()
     express_revenue = State()
