@@ -10,7 +10,7 @@ from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, FSInputFile, Message, ReplyKeyboardRemove
+from aiogram.types import CallbackQuery, FSInputFile, Message
 
 from app.calendly import (
     CalendlyNotConfiguredError,
@@ -627,13 +627,6 @@ async def ensure_simulate_consent(callback: CallbackQuery, state: FSMContext) ->
 async def return_to_base_state(message: Message, state: FSMContext, text: str):
     await state.clear()
     await message.answer(text, reply_markup=persistent_main_keyboard())
-
-
-async def send_tool_nav_hint(message: Message):
-    await message.answer(
-        "Управление инструментом:",
-        reply_markup=tool_navigation_keyboard(),
-    )
 
 
 def is_personal_data_complete(personal_data: dict[str, str]) -> bool:
@@ -1947,17 +1940,6 @@ async def valuation_post_excel_download(callback: CallbackQuery, state: FSMConte
     await send_excel_and_wait_for_user(callback, state)
 
 
-@router.callback_query(F.data == "valuation:excel:menu")
-async def valuation_post_back_to_menu(callback: CallbackQuery, state: FSMContext):
-    if await reject_inactive_tool_callback(callback, state):
-        return
-
-    user_id = await get_db_user_id(callback)
-    cancel_valuation_idle_task(user_id)
-    await return_to_base_state(callback.message, state, THANKS_TOOL_TEXT)
-    await callback.answer()
-
-
 @router.callback_query(ValuationFlow.precise_post_result, F.data == "valuation:idle:models")
 async def valuation_idle_models(callback: CallbackQuery, state: FSMContext):
     user_id = await get_db_user_id(callback)
@@ -2118,34 +2100,8 @@ async def simulate_express_accountants(message: Message, state: FSMContext):
     )
 
 
-@router.callback_query(SimulateFlow.express_accountants, F.data == "simulate:express:skip:accountants")
-async def simulate_express_skip_accountants(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(express_accountants=DEFAULT_EXPRESS_ACCOUNTANTS)
-    user_id = (await state.get_data()).get("db_user_id")
-    if user_id:
-        await save_funnel_fields(int(user_id), accountants_count=DEFAULT_EXPRESS_ACCOUNTANTS)
-    await state.set_state(SimulateFlow.express_salary)
-    await callback.message.answer(
-        "2️⃣ Средняя зарплата бухгалтера (₽/мес, включая налоги)?\n\n"
-        "Напишите свой ответ сообщением.\n"
-        f"Например: {DEFAULT_EXPRESS_SALARY}",
-        parse_mode="HTML",
-        
-    )
-    await callback.answer()
-
-
-@router.callback_query(
-    F.data.in_(
-        {
-            "simulate:back",
-            "simulate:cancel",
-            "valuation:back",
-            "meeting:back",
-        }
-    )
-)
-async def universal_back_handler(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "simulate:cancel")
+async def simulate_cancel_callback(callback: CallbackQuery, state: FSMContext):
     await return_to_base_state(callback.message, state, "Ок, вернули вас в главное меню.")
     await callback.answer()
 
@@ -2162,16 +2118,6 @@ async def simulate_express_salary(message: Message, state: FSMContext):
     if user_id:
         await save_funnel_fields(int(user_id), avg_salary=salary)
     await send_express_result(message, state)
-
-
-@router.callback_query(SimulateFlow.express_salary, F.data == "simulate:express:skip:salary")
-async def simulate_express_skip_salary(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(express_salary=DEFAULT_EXPRESS_SALARY)
-    user_id = (await state.get_data()).get("db_user_id")
-    if user_id:
-        await save_funnel_fields(int(user_id), avg_salary=DEFAULT_EXPRESS_SALARY)
-    await send_express_result(callback.message, state)
-    await callback.answer()
 
 
 @router.message(SimulateFlow.precise_clients, F.text & (F.text.casefold() != "пропустить"))
@@ -2302,21 +2248,6 @@ async def simulate_plus3_advisory(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(SimulateFlow.precise_clients, F.data == "simulate:precise:clients:skip")
-async def simulate_precise_clients_skip(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(precise_clients=0)
-    user_id = (await state.get_data()).get("db_user_id")
-    if user_id:
-        await save_funnel_fields(int(user_id), active_clients_count=0)
-    await state.set_state(SimulateFlow.precise_contacts)
-    await callback.message.answer(
-        "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
-        parse_mode="HTML",
-        reply_markup=simulate_contacts_choice_keyboard(),
-    )
-    await callback.answer()
-
-
 @router.message(SimulateFlow.precise_clients, F.text.casefold() == "пропустить")
 async def simulate_precise_clients_skip_text(message: Message, state: FSMContext):
     await state.update_data(precise_clients=0)
@@ -2329,19 +2260,6 @@ async def simulate_precise_clients_skip_text(message: Message, state: FSMContext
         parse_mode="HTML",
         reply_markup=simulate_contacts_choice_keyboard(),
     )
-
-
-@router.callback_query(SimulateFlow.precise_contacts, F.data == "simulate:contacts:skip")
-async def simulate_contacts_skip(callback: CallbackQuery, state: FSMContext):
-    if (await state.get_data()).get("force_full_contacts", False):
-        await callback.answer("В этом сценарии пропуск недоступен.", show_alert=True)
-        return
-
-    await delete_message_safe(callback.message)
-    await state.update_data(precise_contacts="")
-    await state.set_state(SimulateFlow.precise_standardization)
-    await ask_precise_standardization_question(callback.message)
-    await callback.answer()
 
 
 @router.callback_query(SimulateFlow.precise_contacts, F.data == "simulate:contacts:share")
@@ -2542,28 +2460,6 @@ async def simulate_contact_website_no_site(callback: CallbackQuery, state: FSMCo
     await callback.answer()
 
 
-@router.callback_query(SimulateFlow.precise_contact_website, F.data == "simulate:contacts:website:skip")
-async def simulate_contact_website_skip(callback: CallbackQuery, state: FSMContext):
-    if (await state.get_data()).get("force_full_contacts", False):
-        await callback.answer("Для сайта используйте кнопку «Нет сайта».", show_alert=True)
-        return
-
-    await state.update_data(contact_website="")
-    user_id = (await state.get_data()).get("db_user_id")
-    if user_id:
-        await save_profile_field(int(user_id), "company_website", "")
-    data = await state.get_data()
-    await state.update_data(
-        precise_contacts=(
-            f"name={data.get('contact_name', '')}|email={data.get('contact_email', '')}|"
-            f"phone={data.get('contact_phone', '')}|company={data.get('contact_company', '')}|website="
-        ),
-    )
-    await state.set_state(SimulateFlow.precise_standardization)
-    await ask_precise_standardization_question(callback.message)
-    await callback.answer()
-
-
 @router.message(SimulateFlow.precise_margin, F.text.casefold() == "пропустить")
 async def simulate_precise_margin_skip(message: Message, state: FSMContext):
     await state.update_data(precise_margin=0)
@@ -2571,16 +2467,6 @@ async def simulate_precise_margin_skip(message: Message, state: FSMContext):
     if user_id:
         await save_funnel_fields(int(user_id), margin_percent=0)
     await finalize_precise_assessment(message, state)
-
-
-@router.callback_query(SimulateFlow.precise_margin, F.data == "simulate:precise:margin:skip")
-async def simulate_precise_margin_skip_callback(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(precise_margin=0)
-    user_id = (await state.get_data()).get("db_user_id")
-    if user_id:
-        await save_funnel_fields(int(user_id), margin_percent=0)
-    await finalize_precise_assessment(callback, state)
-    await callback.answer()
 
 
 async def finalize_precise_assessment(target: Message | CallbackQuery, state: FSMContext):
