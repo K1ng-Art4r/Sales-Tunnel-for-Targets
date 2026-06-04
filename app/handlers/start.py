@@ -171,6 +171,9 @@ MISSING_PERSONAL_DATA_TEXT = (
     "пожалуйста, заполните все персональные данные.\n"
     "После этого мы свяжемся с вами в течение 2 рабочих дней."
 )
+INACTIVE_TOOL_BUTTON_TEXT = (
+    "Эта кнопка больше не активна, для использования необходимо ещё раз воспользоваться инструментом."
+)
 MEETING_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DEFAULT_EXPRESS_ACCOUNTANTS = 15
 DEFAULT_EXPRESS_SALARY = 120000
@@ -313,6 +316,26 @@ async def show_main_menu(message: Message, state: FSMContext):
     await message.answer(MENU_TEXT, reply_markup=menu_keyboard())
 
 
+def is_tool_callback(callback_data: str) -> bool:
+    if callback_data.startswith("simulate:"):
+        return True
+    if callback_data == "valuation:menu:faq" or callback_data.startswith("valuation:faq:"):
+        return False
+    return callback_data.startswith("valuation:")
+
+
+async def reject_inactive_tool_callback(callback: CallbackQuery, state: FSMContext) -> bool:
+    callback_data = callback.data or ""
+    if await state.get_state() is not None or not is_tool_callback(callback_data):
+        return False
+
+    user_id = await get_db_user_id(callback)
+    await add_event(user_id, "inactive_tool_callback", callback_data)
+    await callback.answer()
+    await callback.message.answer(INACTIVE_TOOL_BUTTON_TEXT, reply_markup=persistent_main_keyboard())
+    return True
+
+
 async def restart_simulate_flow(message: Message, state: FSMContext):
     await state.clear()
     await state.set_state(SimulateFlow.mode_select)
@@ -336,6 +359,11 @@ async def answer_stale_callback(callback: CallbackQuery, state: FSMContext, sect
     current_state = await state.get_state()
     user_id = await get_db_user_id(callback)
     await add_event(user_id, "stale_or_unknown_callback", f"state={current_state};data={data}")
+
+    if current_state is None and is_tool_callback(data):
+        await callback.answer()
+        await callback.message.answer(INACTIVE_TOOL_BUTTON_TEXT, reply_markup=persistent_main_keyboard())
+        return
 
     if section is None:
         if data.startswith("simulate:"):
@@ -515,6 +543,7 @@ async def send_express_result(message: Message, state: FSMContext):
             f"accountants={accountants};salary={salary};net6={format_rub(result['net_6'])};net12={format_rub(result['net_12'])}",
         )
 
+    await state.update_data(simulate_screen="express_result")
     await state.set_state(SimulateFlow.mode_select)
     await message.answer(text, parse_mode="HTML", reply_markup=simulate_results_keyboard())
 
@@ -764,6 +793,14 @@ async def tool_nav_back(message: Message, state: FSMContext):
     data = await state.get_data()
 
     if current_state == SimulateFlow.mode_select.state:
+        if data.get("simulate_screen") == "express_result":
+            await state.set_state(SimulateFlow.express_salary)
+            await message.answer(
+                "Вернули вас к последнему вопросу экспресс-оценки.\n"
+                "Введите среднюю зарплату бухгалтера заново — после этого я пересчитаю оценку и сохраню изменения.\n\n"
+                f"Например: {DEFAULT_EXPRESS_SALARY}",
+            )
+            return
         await show_main_menu(message, state)
         return
     if current_state == SimulateFlow.express_accountants.state:
@@ -1191,17 +1228,26 @@ async def menu_stub(callback: CallbackQuery):
 
 @router.callback_query(F.data == "simulate:mode:menu")
 async def simulate_mode_menu(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     await send_simulate_mode_menu(callback, state)
 
 
 @router.callback_query(F.data == "simulate:back")
 async def simulate_back_to_main(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     await return_to_base_state(callback.message, state, THANKS_TOOL_TEXT)
     await callback.answer()
 
 
 @router.callback_query(F.data == "simulate:mode:express")
 async def simulate_mode_express(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     if not await ensure_simulate_consent(callback, state):
         return
 
@@ -1236,6 +1282,9 @@ async def simulate_mode_express(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "simulate:mode:precise")
 async def simulate_mode_precise(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     if not await ensure_simulate_consent(callback, state):
         return
 
@@ -1264,6 +1313,9 @@ async def simulate_mode_precise(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "simulate:mode:pro")
 async def simulate_mode_pro(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     if not await ensure_simulate_consent(callback, state):
         return
 
@@ -1275,6 +1327,9 @@ async def simulate_mode_pro(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "valuation:back")
 async def valuation_back_to_main(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await return_to_base_state(callback.message, state, THANKS_TOOL_TEXT)
@@ -1283,6 +1338,9 @@ async def valuation_back_to_main(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "valuation:mode:express")
 async def valuation_mode_express(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await callback.message.answer(
@@ -1299,6 +1357,9 @@ async def valuation_mode_express(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "valuation:mode:excel")
 async def valuation_mode_excel(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await callback.answer()
@@ -1315,6 +1376,9 @@ async def valuation_mode_faq(callback: CallbackQuery):
 
 @router.callback_query(F.data == "valuation:express:start")
 async def valuation_express_start(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await state.set_state(ValuationFlow.express_revenue)
@@ -1722,6 +1786,9 @@ async def valuation_send_precise_result(target: Message | CallbackQuery, state: 
 
 @router.callback_query(F.data == "valuation:excel:download")
 async def valuation_post_excel_download(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await send_excel_and_wait_for_user(callback, state)
@@ -1729,6 +1796,9 @@ async def valuation_post_excel_download(callback: CallbackQuery, state: FSMConte
 
 @router.callback_query(F.data == "valuation:excel:menu")
 async def valuation_post_back_to_menu(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await return_to_base_state(callback.message, state, THANKS_TOOL_TEXT)
@@ -1986,6 +2056,9 @@ async def simulate_precise_margin(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.in_({"simulate:precise:more", "simulate:precise:more5"}))
 async def simulate_precise_more(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     if not await ensure_simulate_consent(callback, state):
         return
 

@@ -423,7 +423,6 @@ def valuation_excel_offer_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📥 Скачать Excel-файл", callback_data="valuation:excel:download")],
-            [InlineKeyboardButton(text="↩️ В меню", callback_data="valuation:excel:menu")],
         ]
     )
 
