@@ -177,6 +177,9 @@ INACTIVE_TOOL_BUTTON_TEXT = (
 MEETING_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DEFAULT_EXPRESS_ACCOUNTANTS = 15
 DEFAULT_EXPRESS_SALARY = 120000
+DEFAULT_VALUATION_REVENUE_MLN = 30.0
+DEFAULT_VALUATION_SHARE_OPTION = "60_80"
+DEFAULT_VALUATION_PROFITABILITY_OPTION = "unknown"
 VALUATION_RUB_INPUT_THRESHOLD = 1000
 VALUATION_MULTIPLE = 2.5
 VALUATION_IDLE_TIMEOUT_SECONDS = 60
@@ -756,6 +759,91 @@ async def tool_nav_skip(message: Message, state: FSMContext):
     if current_state == SimulateFlow.express_salary.state:
         await state.update_data(express_salary=DEFAULT_EXPRESS_SALARY)
         await send_express_result(message, state)
+        return
+    if current_state == ValuationFlow.express_revenue.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await state.update_data(valuation_revenue_mln=DEFAULT_VALUATION_REVENUE_MLN)
+        await save_funnel_fields(user_id, valuation_revenue_mln=DEFAULT_VALUATION_REVENUE_MLN)
+        await state.set_state(ValuationFlow.express_share)
+        await message.answer(
+            f"Приняли значение из примера: {format_mln(DEFAULT_VALUATION_REVENUE_MLN)} млн руб.\n\n"
+            "<b>Q2: Какая доля выручки приходится на базовый бухгалтерский аутсорсинг? (%)</b>\n\n"
+            "Это обработка первичных документов, сверки и банк-клиент. Без учёта аудита, консалтинга и прочих услуг.",
+            parse_mode="HTML",
+            reply_markup=valuation_share_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.express_share.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        share = VALUATION_SHARE_MAP[DEFAULT_VALUATION_SHARE_OPTION]
+        await state.update_data(valuation_share_percent=share)
+        await save_funnel_fields(user_id, valuation_share_percent=share)
+        await state.set_state(ValuationFlow.express_profitability)
+        await message.answer(
+            "Приняли среднее значение: 60–80%.\n\n"
+            "<b>Q3: Какая коммерческая маржа (прибыльность) на базовых бухгалтерских услугах (P)?</b>\n\n"
+            "Это прибыль от базовой бухгалтерии ÷ выручка от базовой бухгалтерии.",
+            parse_mode="HTML",
+            reply_markup=valuation_profitability_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.express_profitability.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        profitability = VALUATION_PROFITABILITY_MAP[DEFAULT_VALUATION_PROFITABILITY_OPTION]
+        data = await state.get_data()
+        revenue_mln = float(data.get("valuation_revenue_mln", DEFAULT_VALUATION_REVENUE_MLN))
+        profit_mln = revenue_mln * (profitability / 100)
+        valuation_mln = round(profit_mln * VALUATION_MULTIPLE, 1)
+        profit_mln_rounded = round(profit_mln, 1)
+
+        await state.update_data(
+            valuation_profitability_percent=profitability,
+            valuation_profit_mln=profit_mln_rounded,
+            valuation_result_mln=valuation_mln,
+        )
+        await save_funnel_fields(
+            user_id,
+            valuation_profitability_percent=profitability,
+            valuation_profit_mln=profit_mln_rounded,
+            valuation_result_mln=valuation_mln,
+        )
+        await add_event(
+            user_id,
+            "valuation_express_completed",
+            (
+                f"revenue_mln={revenue_mln};share={data.get('valuation_share_percent')};"
+                f"profitability={profitability};profit_mln={profit_mln_rounded};valuation_mln={valuation_mln};skipped_profitability=true"
+            ),
+        )
+
+        await state.set_state(ValuationFlow.express_continue)
+        await message.answer(
+            "Приняли среднее значение: я не знаю / 25%.\n\n"
+            "Оценка стоимости вашей фирмы\n"
+            f"{profit_mln_rounded:.1f} × {VALUATION_MULTIPLE:.1f} = {valuation_mln:.1f} млн руб.\n"
+            "— стандарт для бухгалтерских практик\n\n"
+            "Есть несколько важных нюансов, которые нужно уточнить. "
+            "Вы согласны ответить на ещё несколько вопросов, чтобы быть точнее и учесть важные моменты?",
+            reply_markup=valuation_continue_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.express_continue.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await state.set_state(ValuationFlow.precise_clients_total)
+        await message.answer(
+            "Приняли среднее действие: продолжить уточнение.\n\n"
+            "Отлично! Теперь несколько вопросов о вашем клиентском портфеле и команде. "
+            "Это поможет нам понять, как ИИ-автоматизация и инвестиции лучше всего впишутся именно в вашу фирму.\n\n"
+            "Ещё 5 вопросов — займёт пару минут 👇\n\n"
+            "<b>Q4: Сколько у вас активных клиентов?</b>\n\n"
+            "Считайте только тех, кто получает услуги по базовой бухгалтерии. "
+            "Напишите одно число (например: 50, 250, 500).",
+            parse_mode="HTML",
+        )
         return
     if current_state == SimulateFlow.precise_advisory.state:
         await state.update_data(plus3_advisory="10_20")
