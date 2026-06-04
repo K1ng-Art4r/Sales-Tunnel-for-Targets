@@ -306,6 +306,10 @@ async def show_main_menu(message: Message, state: FSMContext):
     await state.clear()
     user_id = await get_db_user_id(message)
     await add_event(user_id, "menu_opened")
+    await message.answer(
+        "Главное меню. Нижняя клавиатура обновлена 👇",
+        reply_markup=persistent_main_keyboard(),
+    )
     await message.answer(MENU_TEXT, reply_markup=menu_keyboard())
 
 
@@ -2537,6 +2541,29 @@ async def simulate_wait_excel_invalid(message: Message):
     await message.answer(
         "Пожалуйста, отправьте Excel-файл (.xlsx/.xls/.xlsm) или используйте кнопки ниже.",
         reply_markup=simulate_deep_wait_keyboard(),
+    )
+
+
+@router.message()
+async def unexpected_message(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    user_id = await get_db_user_id(message)
+    await add_event(
+        user_id,
+        "unexpected_message",
+        f"state={current_state};has_text={bool(message.text)};has_document={bool(message.document)}",
+    )
+
+    if current_state:
+        await message.answer(
+            "Простите, сейчас я жду ответ на текущий вопрос или нажатие кнопки. "
+            "Если хотите выйти из сценария, нажмите «🏠 В меню» или «❌ Отменить».",
+        )
+        return
+
+    await message.answer(
+        "Простите, не знаю, что с этим делать. Выберите раздел в меню ниже 👇",
+        reply_markup=persistent_main_keyboard(),
     )
 
 

@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Check that inline callback_data values have a matching callback handler.
 
-The check is intentionally static and conservative: it reads literal
-callback_data values from app/keyboards.py and compares them with exact,
-prefix and regexp filters in app/handlers/start.py. If the bot has a final
-catch-all callback handler, values without a specific handler are reported as
-fallback-covered instead of failing the check.
+By default the output is concise and fails only on truly uncovered callbacks.
+Use --verbose to print state-scoped and fallback-covered callback details.
+Use --strict-state to fail when a callback is handled only inside a specific FSM state.
 """
 
 from __future__ import annotations
 
+import argparse
 import ast
 import re
 import sys
@@ -34,6 +33,23 @@ class HandlerPattern:
     pattern: str
     line: int
     state_scoped: bool
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Check app/keyboards.py callback_data values against app/handlers/start.py handlers.",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print state-scoped and fallback-covered callback lists.",
+    )
+    parser.add_argument(
+        "--strict-state",
+        action="store_true",
+        help="Fail if a callback is handled only by an FSM state-scoped handler.",
+    )
+    return parser.parse_args()
 
 
 def source_for(node: ast.AST, source: str) -> str:
@@ -100,7 +116,16 @@ def matches(value: str, pattern: HandlerPattern) -> bool:
     return False
 
 
+def print_callback_list(title: str, callbacks: list[CallbackValue]) -> None:
+    if not callbacks:
+        return
+    print(f"\n{title}:")
+    for callback in callbacks:
+        print(f"  - {callback.path.relative_to(ROOT)}:{callback.line} {callback.value}")
+
+
 def main() -> int:
+    args = parse_args()
     callbacks = collect_callback_values(KEYBOARDS_PATH)
     patterns, has_catch_all = collect_handler_patterns(HANDLERS_PATH)
 
@@ -126,24 +151,30 @@ def main() -> int:
     print(f"Checked {len(callbacks)} literal callback_data values.")
     print(f"Found {len(patterns)} callback handler patterns.")
     print(f"Catch-all fallback: {'yes' if has_catch_all else 'no'}")
+    print(f"State-scoped only callbacks: {len(state_scoped_only)}")
+    print(f"Fallback-covered callbacks: {len(fallback_only)}")
 
-    if state_scoped_only:
-        print("\nState-scoped only callbacks (old chat clicks may fall through to fallback):")
-        for callback in state_scoped_only:
-            print(f"  - {callback.path.relative_to(ROOT)}:{callback.line} {callback.value}")
-
-    if fallback_only:
-        print("\nFallback-covered callbacks without a specific static handler:")
-        for callback in fallback_only:
-            print(f"  - {callback.path.relative_to(ROOT)}:{callback.line} {callback.value}")
+    if args.verbose:
+        print_callback_list(
+            "State-scoped only callbacks (old chat clicks may fall through to fallback)",
+            state_scoped_only,
+        )
+        print_callback_list(
+            "Fallback-covered callbacks without a specific static handler",
+            fallback_only,
+        )
 
     if uncovered:
-        print("\nUncovered callbacks:")
-        for callback in uncovered:
-            print(f"  - {callback.path.relative_to(ROOT)}:{callback.line} {callback.value}")
+        print_callback_list("Uncovered callbacks", uncovered)
+        return 1
+
+    if args.strict_state and state_scoped_only:
+        print_callback_list("Strict-state failures", state_scoped_only)
         return 1
 
     print("\nNo uncovered callbacks found.")
+    if state_scoped_only or fallback_only:
+        print("Run with --verbose to inspect non-fatal state-scoped/fallback-covered callbacks.")
     return 0
 
 
