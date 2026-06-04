@@ -7,6 +7,7 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile, Message, ReplyKeyboardRemove
@@ -170,9 +171,15 @@ MISSING_PERSONAL_DATA_TEXT = (
     "пожалуйста, заполните все персональные данные.\n"
     "После этого мы свяжемся с вами в течение 2 рабочих дней."
 )
+INACTIVE_TOOL_BUTTON_TEXT = (
+    "Эта кнопка больше не активна, для использования необходимо ещё раз воспользоваться инструментом."
+)
 MEETING_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DEFAULT_EXPRESS_ACCOUNTANTS = 15
 DEFAULT_EXPRESS_SALARY = 120000
+DEFAULT_VALUATION_REVENUE_MLN = 30.0
+DEFAULT_VALUATION_SHARE_OPTION = "60_80"
+DEFAULT_VALUATION_PROFITABILITY_OPTION = "unknown"
 VALUATION_RUB_INPUT_THRESHOLD = 1000
 VALUATION_MULTIPLE = 2.5
 VALUATION_IDLE_TIMEOUT_SECONDS = 60
@@ -299,6 +306,97 @@ async def send_valuation_faq_topics(message: Message):
         "Выберите тему:",
         reply_markup=valuation_faq_topics_keyboard(),
     )
+
+
+async def show_main_menu(message: Message, state: FSMContext):
+    await state.clear()
+    user_id = await get_db_user_id(message)
+    await add_event(user_id, "menu_opened")
+    await message.answer(
+        "Главное меню. Нижняя клавиатура обновлена 👇",
+        reply_markup=persistent_main_keyboard(),
+    )
+    await message.answer(MENU_TEXT, reply_markup=menu_keyboard())
+
+
+def is_tool_callback(callback_data: str) -> bool:
+    if callback_data.startswith("simulate:"):
+        return True
+    if callback_data == "valuation:menu:faq" or callback_data.startswith("valuation:faq:"):
+        return False
+    return callback_data.startswith("valuation:")
+
+
+async def reject_inactive_tool_callback(callback: CallbackQuery, state: FSMContext) -> bool:
+    callback_data = callback.data or ""
+    if await state.get_state() is not None or not is_tool_callback(callback_data):
+        return False
+
+    user_id = await get_db_user_id(callback)
+    await add_event(user_id, "inactive_tool_callback", callback_data)
+    await callback.answer()
+    await callback.message.answer(INACTIVE_TOOL_BUTTON_TEXT, reply_markup=persistent_main_keyboard())
+    return True
+
+
+async def restart_simulate_flow(message: Message, state: FSMContext):
+    await state.clear()
+    await state.set_state(SimulateFlow.mode_select)
+    await message.answer(SIMULATE_MODE_TEXT, parse_mode="HTML", reply_markup=simulate_mode_keyboard())
+
+
+async def restart_valuation_flow(message: Message, state: FSMContext):
+    await state.clear()
+    await state.set_state(ValuationFlow.mode_select)
+    await message.answer(
+        "Ваша фирма 2.0 — это не продажа бизнеса. Это апгрейд.\n"
+        "Мы покажем, как партнёрство с AIVEL может изменить экономику вашей фирмы: "
+        "больше прибыли, автоматизация рутины и капитал для роста.\n"
+        "Выберите, с чего начать:",
+        reply_markup=valuation_mode_keyboard(),
+    )
+
+
+async def answer_stale_callback(callback: CallbackQuery, state: FSMContext, section: str | None = None):
+    data = callback.data or ""
+    current_state = await state.get_state()
+    user_id = await get_db_user_id(callback)
+    await add_event(user_id, "stale_or_unknown_callback", f"state={current_state};data={data}")
+
+    if is_tool_callback(data):
+        await callback.answer()
+        await callback.message.answer(INACTIVE_TOOL_BUTTON_TEXT, reply_markup=persistent_main_keyboard())
+        return
+
+    if section is None:
+        if data.startswith("simulate:"):
+            section = "simulate"
+        elif data.startswith("valuation:"):
+            section = "valuation"
+        elif data.startswith("meeting:") or data.startswith("stub:book_meeting"):
+            section = "meeting"
+
+    await callback.answer("Эта кнопка уже неактуальна, показываю актуальный раздел 👇", show_alert=False)
+
+    if section == "simulate":
+        await restart_simulate_flow(callback.message, state)
+        return
+    if section == "valuation":
+        await restart_valuation_flow(callback.message, state)
+        return
+    if section == "meeting":
+        await callback.message.answer(
+            "Откройте Calendly по кнопке ниже 👇",
+            reply_markup=calendly_meeting_keyboard(),
+            disable_web_page_preview=True,
+        )
+        await callback.message.answer(
+            "Вам удалось записаться на встречу?",
+            reply_markup=meeting_registration_check_keyboard(),
+        )
+        return
+
+    await show_main_menu(callback.message, state)
 
 
 def valuation_faq_answers() -> dict[str, str]:
@@ -448,6 +546,7 @@ async def send_express_result(message: Message, state: FSMContext):
             f"accountants={accountants};salary={salary};net6={format_rub(result['net_6'])};net12={format_rub(result['net_12'])}",
         )
 
+    await state.update_data(simulate_screen="express_result")
     await state.set_state(SimulateFlow.mode_select)
     await message.answer(text, parse_mode="HTML", reply_markup=simulate_results_keyboard())
 
@@ -633,26 +732,20 @@ async def cmd_start(message: Message, state: FSMContext):
 
 @router.message(F.text == "Меню бота")
 async def open_menu(message: Message, state: FSMContext):
-    await state.clear()
-    user_id = await get_db_user_id(message)
-    await add_event(user_id, "menu_opened")
-    await message.answer(MENU_TEXT, reply_markup=menu_keyboard())
+    await show_main_menu(message, state)
 
 
-@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "🏠 В меню")
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__, *MeetingBookingFlow.__all_states__)), F.text == "🏠 В меню")
 async def tool_nav_home(message: Message, state: FSMContext):
-    await state.clear()
-    user_id = await get_db_user_id(message)
-    await add_event(user_id, "menu_opened")
-    await message.answer(MENU_TEXT, reply_markup=menu_keyboard())
+    await show_main_menu(message, state)
 
 
-@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "❌ Отменить")
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__, *MeetingBookingFlow.__all_states__)), F.text == "❌ Отменить")
 async def tool_nav_cancel(message: Message, state: FSMContext):
     await return_to_base_state(message, state, THANKS_TOOL_TEXT)
 
 
-@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "⏭ Пропустить")
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__, *MeetingBookingFlow.__all_states__)), F.text == "⏭ Пропустить")
 async def tool_nav_skip(message: Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state == SimulateFlow.express_accountants.state:
@@ -666,6 +759,132 @@ async def tool_nav_skip(message: Message, state: FSMContext):
     if current_state == SimulateFlow.express_salary.state:
         await state.update_data(express_salary=DEFAULT_EXPRESS_SALARY)
         await send_express_result(message, state)
+        return
+    if current_state == ValuationFlow.express_revenue.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await state.update_data(valuation_revenue_mln=DEFAULT_VALUATION_REVENUE_MLN)
+        await save_funnel_fields(user_id, valuation_revenue_mln=DEFAULT_VALUATION_REVENUE_MLN)
+        await state.set_state(ValuationFlow.express_share)
+        await message.answer(
+            f"Приняли значение из примера: {format_mln(DEFAULT_VALUATION_REVENUE_MLN)} млн руб.\n\n"
+            "<b>Q2: Какая доля выручки приходится на базовый бухгалтерский аутсорсинг? (%)</b>\n\n"
+            "Это обработка первичных документов, сверки и банк-клиент. Без учёта аудита, консалтинга и прочих услуг.",
+            parse_mode="HTML",
+            reply_markup=valuation_share_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.express_share.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        share = VALUATION_SHARE_MAP[DEFAULT_VALUATION_SHARE_OPTION]
+        await state.update_data(valuation_share_percent=share)
+        await save_funnel_fields(user_id, valuation_share_percent=share)
+        await state.set_state(ValuationFlow.express_profitability)
+        await message.answer(
+            "Приняли среднее значение: 60–80%.\n\n"
+            "<b>Q3: Какая коммерческая маржа (прибыльность) на базовых бухгалтерских услугах (P)?</b>\n\n"
+            "Это прибыль от базовой бухгалтерии ÷ выручка от базовой бухгалтерии.",
+            parse_mode="HTML",
+            reply_markup=valuation_profitability_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.express_profitability.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        profitability = VALUATION_PROFITABILITY_MAP[DEFAULT_VALUATION_PROFITABILITY_OPTION]
+        data = await state.get_data()
+        revenue_mln = float(data.get("valuation_revenue_mln", DEFAULT_VALUATION_REVENUE_MLN))
+        profit_mln = revenue_mln * (profitability / 100)
+        valuation_mln = round(profit_mln * VALUATION_MULTIPLE, 1)
+        profit_mln_rounded = round(profit_mln, 1)
+
+        await state.update_data(
+            valuation_profitability_percent=profitability,
+            valuation_profit_mln=profit_mln_rounded,
+            valuation_result_mln=valuation_mln,
+        )
+        await save_funnel_fields(
+            user_id,
+            valuation_profitability_percent=profitability,
+            valuation_profit_mln=profit_mln_rounded,
+            valuation_result_mln=valuation_mln,
+        )
+        await add_event(
+            user_id,
+            "valuation_express_completed",
+            (
+                f"revenue_mln={revenue_mln};share={data.get('valuation_share_percent')};"
+                f"profitability={profitability};profit_mln={profit_mln_rounded};valuation_mln={valuation_mln};skipped_profitability=true"
+            ),
+        )
+
+        await state.set_state(ValuationFlow.express_continue)
+        await message.answer(
+            "Приняли среднее значение: я не знаю / 25%.\n\n"
+            "Оценка стоимости вашей фирмы\n"
+            f"{profit_mln_rounded:.1f} × {VALUATION_MULTIPLE:.1f} = {valuation_mln:.1f} млн руб.\n"
+            "— стандарт для бухгалтерских практик\n\n"
+            "Есть несколько важных нюансов, которые нужно уточнить. "
+            "Вы согласны ответить на ещё несколько вопросов, чтобы быть точнее и учесть важные моменты?",
+            reply_markup=valuation_continue_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.express_continue.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await state.set_state(ValuationFlow.precise_clients_total)
+        await message.answer(
+            "Приняли среднее действие: продолжить уточнение.\n\n"
+            "Отлично! Теперь несколько вопросов о вашем клиентском портфеле и команде. "
+            "Это поможет нам понять, как ИИ-автоматизация и инвестиции лучше всего впишутся именно в вашу фирму.\n\n"
+            "Ещё 5 вопросов — займёт пару минут 👇\n\n"
+            "<b>Q4: Сколько у вас активных клиентов?</b>\n\n"
+            "Считайте только тех, кто получает услуги по базовой бухгалтерии. "
+            "Напишите одно число (например: 50, 250, 500).",
+            parse_mode="HTML",
+        )
+        return
+    if current_state == SimulateFlow.precise_advisory.state:
+        await state.update_data(plus3_advisory="10_20")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), advisory_band="10_20")
+        await state.set_state(SimulateFlow.precise_clients)
+        await message.answer(
+            "Приняли среднее значение: 10–20%.\n\n"
+            "4️⃣ Количество активных клиентов?\n\n"
+            "Напишите свой ответ сообщением.\n"
+            "Например: 120",
+            parse_mode="HTML",
+        )
+        return
+    if current_state == SimulateFlow.precise_standardization.state:
+        await state.update_data(plus3_standardization="medium")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), standardization_level="medium")
+        await state.set_state(SimulateFlow.precise_automation)
+        await message.answer(
+            "Приняли среднее значение: средняя стандартизация.\n\n"
+            "6️⃣ Используете ли вы сейчас какие-то инструменты автоматизации?\n\n",
+            parse_mode="HTML",
+            reply_markup=simulate_plus3_automation_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_automation.state:
+        await state.update_data(plus3_automation="partial")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), automation_level="partial")
+        await state.set_state(SimulateFlow.precise_margin)
+        await message.answer(
+            "Приняли среднее значение: частичная автоматизация.\n\n"
+            "7️⃣ Текущая валовая маржа (%)?\n\n"
+            "Напишите свой ответ сообщением.\n"
+            "Например: 35",
+            parse_mode="HTML",
+        )
         return
     if current_state == SimulateFlow.precise_clients.state:
         await state.update_data(precise_clients=120)
@@ -694,12 +913,52 @@ async def tool_nav_skip(message: Message, state: FSMContext):
             await save_funnel_fields(int(user_id), margin_percent=35)
         await finalize_precise_assessment(message, state)
         return
+    if current_state == SimulateFlow.precise_growth.state:
+        await state.update_data(post_growth="normal")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), growth_band="normal")
+        await state.set_state(SimulateFlow.precise_mna)
+        await message.answer(
+            "Приняли среднее значение: обычный рост +5–20%.\n\n"
+            "Рассматриваете ли вы M&A / привлечение инвестиций?",
+            reply_markup=simulate_mna_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_mna.state:
+        await state.update_data(post_mna="no")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), mna_interest="no")
+        await state.set_state(SimulateFlow.precise_wait_excel)
+        await message.answer(
+            "Приняли среднее значение: нет.\n\n"
+            "🎯 Серьёзно рассматриваете внедрение? Загрузите Excel — получите полный бизнес-кейс от нашей команды.",
+            reply_markup=simulate_deep_assessment_keyboard(),
+        )
+        return
     await message.answer("На этом шаге пропуск не требуется.")
 
 
-@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__)), F.text == "⬅️ Назад")
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__, *MeetingBookingFlow.__all_states__)), F.text == "⬅️ Назад")
 async def tool_nav_back(message: Message, state: FSMContext):
     current_state = await state.get_state()
+    data = await state.get_data()
+
+    if current_state == SimulateFlow.mode_select.state:
+        if data.get("simulate_screen") == "express_result":
+            await state.set_state(SimulateFlow.express_salary)
+            await message.answer(
+                "Вернули вас к последнему вопросу экспресс-оценки.\n"
+                "Введите среднюю зарплату бухгалтера заново — после этого я пересчитаю оценку и сохраню изменения.\n\n"
+                f"Например: {DEFAULT_EXPRESS_SALARY}",
+            )
+            return
+        await show_main_menu(message, state)
+        return
+    if current_state == SimulateFlow.express_accountants.state:
+        await restart_simulate_flow(message, state)
+        return
     if current_state == SimulateFlow.express_salary.state:
         await state.set_state(SimulateFlow.express_accountants)
         await message.answer(
@@ -707,12 +966,175 @@ async def tool_nav_back(message: Message, state: FSMContext):
             f"Например: {DEFAULT_EXPRESS_ACCOUNTANTS}"
         )
         return
-    if current_state == SimulateFlow.express_accountants.state:
-        await message.answer("Вы уже на первом шаге экспресс-оценки.")
+    if current_state == SimulateFlow.precise_advisory.state:
+        await state.set_state(SimulateFlow.mode_select)
+        await message.answer(SIMULATE_MODE_TEXT, parse_mode="HTML", reply_markup=simulate_mode_keyboard())
         return
-    if current_state in {SimulateFlow.mode_select.state, ValuationFlow.mode_select.state}:
+    if current_state == SimulateFlow.precise_contacts.state:
+        await state.set_state(SimulateFlow.precise_clients)
+        await message.answer("4️⃣ Сколько у вас активных клиентов?\nНапишите число или нажмите «Пропустить».")
         return
-    await message.answer("Для этого шага возврат пока не настроен.")
+    if current_state == SimulateFlow.precise_contact_name.state:
+        await state.set_state(SimulateFlow.precise_contacts)
+        await message.answer(
+            "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
+            parse_mode="HTML",
+            reply_markup=simulate_contacts_choice_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_contact_email.state:
+        await state.set_state(SimulateFlow.precise_contact_name)
+        await message.answer("Ваше имя?")
+        return
+    if current_state == SimulateFlow.precise_contact_phone.state:
+        await state.set_state(SimulateFlow.precise_contact_email)
+        await message.answer("Ваш email?")
+        return
+    if current_state == SimulateFlow.precise_contact_company.state:
+        await state.set_state(SimulateFlow.precise_contact_phone)
+        await message.answer("Ваш телефон?")
+        return
+    if current_state == SimulateFlow.precise_contact_website.state:
+        await state.set_state(SimulateFlow.precise_contact_company)
+        await message.answer("Название компании?")
+        return
+    if current_state == SimulateFlow.precise_standardization.state:
+        await state.set_state(SimulateFlow.precise_contacts)
+        await message.answer(
+            "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
+            parse_mode="HTML",
+            reply_markup=simulate_contacts_choice_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_automation.state:
+        await state.set_state(SimulateFlow.precise_standardization)
+        await ask_precise_standardization_question(message)
+        return
+    if current_state == SimulateFlow.precise_margin.state:
+        await state.set_state(SimulateFlow.precise_automation)
+        await message.answer(
+            "6️⃣ Используете ли вы сейчас какие-то инструменты автоматизации?\n\n",
+            parse_mode="HTML",
+            reply_markup=simulate_plus3_automation_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_growth.state:
+        await state.set_state(SimulateFlow.precise_margin)
+        await message.answer("7️⃣ Текущая валовая маржа (%)?\n\nНапишите свой ответ сообщением.\nНапример: 35")
+        return
+    if current_state == SimulateFlow.precise_mna.state:
+        await state.set_state(SimulateFlow.precise_growth)
+        await message.answer(
+            "Планируете ли вы рост в ближайшие 12-24 месяца?",
+            reply_markup=simulate_growth_keyboard(),
+        )
+        return
+    if current_state == SimulateFlow.precise_wait_excel.state:
+        await state.set_state(SimulateFlow.precise_mna)
+        await message.answer(
+            "Рассматриваете ли вы M&A / привлечение инвестиций?",
+            reply_markup=simulate_mna_keyboard(),
+        )
+        return
+
+    if current_state == ValuationFlow.mode_select.state:
+        await show_main_menu(message, state)
+        return
+    if current_state == ValuationFlow.express_revenue.state:
+        await restart_valuation_flow(message, state)
+        return
+    if current_state == ValuationFlow.express_share.state:
+        await state.set_state(ValuationFlow.express_revenue)
+        await message.answer(
+            "<b>Q1: Какая годовая выручка вашей фирмы? (млн руб.)</b>\n\n"
+            "Просто напишите число, например: 30",
+            parse_mode="HTML",
+        )
+        return
+    if current_state == ValuationFlow.express_profitability.state:
+        await state.set_state(ValuationFlow.express_share)
+        await message.answer(
+            "<b>Q2: Какая доля выручки приходится на базовый бухгалтерский аутсорсинг? (%)</b>\n\n"
+            "Это обработка первичных документов, сверки и банк-клиент. Без учёта аудита, консалтинга и прочих услуг.",
+            parse_mode="HTML",
+            reply_markup=valuation_share_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.express_continue.state:
+        await state.set_state(ValuationFlow.express_profitability)
+        await message.answer(
+            "<b>Q3: Какая коммерческая маржа (прибыльность) на базовых бухгалтерских услугах (P)?</b>\n\n"
+            "Это прибыль от базовой бухгалтерии ÷ выручка от базовой бухгалтерии.",
+            parse_mode="HTML",
+            reply_markup=valuation_profitability_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.precise_clients_total.state:
+        await state.set_state(ValuationFlow.express_continue)
+        await message.answer(
+            "Есть несколько важных нюансов, которые нужно уточнить. "
+            "Вы согласны ответить на ещё несколько вопросов, чтобы быть точнее и учесть важные моменты?",
+            reply_markup=valuation_continue_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.precise_clients_key.state:
+        await state.set_state(ValuationFlow.precise_clients_total)
+        await message.answer("<b>Q4: Сколько у вас активных клиентов?</b>", parse_mode="HTML")
+        return
+    if current_state == ValuationFlow.precise_top5_share.state:
+        await state.set_state(ValuationFlow.precise_clients_key)
+        await message.answer(
+            "<b>Q5: Сколько клиентов приносят основную часть вашей выручки от базовой бухгалтерии?</b>\n\n"
+            "Напишите одно число (например: 5, 15, 40).",
+            parse_mode="HTML",
+        )
+        return
+    if current_state == ValuationFlow.precise_headcount.state:
+        await state.set_state(ValuationFlow.precise_top5_share)
+        await message.answer(
+            "<b>Q6: Какую долю выручки от базовой бухгалтерии приносят ваши 5 крупнейших клиентов?</b>",
+            parse_mode="HTML",
+            reply_markup=valuation_q6_share_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.precise_automation_level.state:
+        await state.set_state(ValuationFlow.precise_headcount)
+        await message.answer(
+            "<b>Q7: Сколько бухгалтеров занято на базовых операциях?</b>\n\n"
+            "Напишите одно число (например: 5, 15, 40).",
+            parse_mode="HTML",
+        )
+        return
+    if current_state == ValuationFlow.precise_automation_tools.state:
+        await state.set_state(ValuationFlow.precise_automation_level)
+        await message.answer(
+            "<b>Q8: Используете ли вы инструменты автоматизации в бухгалтерии?</b>\n\n"
+            "Выберите вариант ответа:",
+            parse_mode="HTML",
+            reply_markup=valuation_q8_automation_level_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.precise_post_result.state:
+        await restart_valuation_flow(message, state)
+        return
+
+    if current_state == MeetingBookingFlow.waiting_date.state:
+        await state.set_state(MeetingBookingFlow.waiting_email)
+        await message.answer("Отправьте, пожалуйста, ваш email для записи на встречу.")
+        return
+    if current_state == MeetingBookingFlow.waiting_custom_time.state:
+        selected_date = data.get("meeting_date")
+        if selected_date:
+            await state.set_state(MeetingBookingFlow.waiting_date)
+            year, month = map(int, selected_date[:7].split("-"))
+            await message.answer("Выберите дату созвона:", reply_markup=meeting_calendar_keyboard(year, month))
+            return
+    if current_state == MeetingBookingFlow.waiting_email.state:
+        await show_main_menu(message, state)
+        return
+
+    await message.answer("Эта кнопка «Назад» уже неактуальна. Показываю главное меню 👇")
+    await show_main_menu(message, state)
 
 @router.message(F.text == "Калькулятор экономии")
 async def open_simulate_from_keyboard(message: Message, state: FSMContext):
@@ -957,19 +1379,28 @@ async def menu_stub(callback: CallbackQuery):
     await callback.answer("Раздел в разработке. Скоро добавим функционал.", show_alert=True)
 
 
-@router.callback_query(SimulateFlow.mode_select, F.data == "simulate:mode:menu")
+@router.callback_query(F.data == "simulate:mode:menu")
 async def simulate_mode_menu(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     await send_simulate_mode_menu(callback, state)
 
 
-@router.callback_query(SimulateFlow.mode_select, F.data == "simulate:back")
+@router.callback_query(F.data == "simulate:back")
 async def simulate_back_to_main(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     await return_to_base_state(callback.message, state, THANKS_TOOL_TEXT)
     await callback.answer()
 
 
-@router.callback_query(SimulateFlow.mode_select, F.data == "simulate:mode:express")
+@router.callback_query(F.data == "simulate:mode:express")
 async def simulate_mode_express(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     if not await ensure_simulate_consent(callback, state):
         return
 
@@ -1002,8 +1433,11 @@ async def simulate_mode_express(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(SimulateFlow.mode_select, F.data == "simulate:mode:precise")
+@router.callback_query(F.data == "simulate:mode:precise")
 async def simulate_mode_precise(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     if not await ensure_simulate_consent(callback, state):
         return
 
@@ -1030,8 +1464,11 @@ async def simulate_mode_precise(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(SimulateFlow.mode_select, F.data == "simulate:mode:pro")
+@router.callback_query(F.data == "simulate:mode:pro")
 async def simulate_mode_pro(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     if not await ensure_simulate_consent(callback, state):
         return
 
@@ -1041,16 +1478,22 @@ async def simulate_mode_pro(callback: CallbackQuery, state: FSMContext):
     await send_excel_and_wait_for_user(callback, state)
 
 
-@router.callback_query(ValuationFlow.mode_select, F.data == "valuation:back")
+@router.callback_query(F.data == "valuation:back")
 async def valuation_back_to_main(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await return_to_base_state(callback.message, state, THANKS_TOOL_TEXT)
     await callback.answer()
 
 
-@router.callback_query(ValuationFlow.mode_select, F.data == "valuation:mode:express")
+@router.callback_query(F.data == "valuation:mode:express")
 async def valuation_mode_express(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await callback.message.answer(
@@ -1065,15 +1508,18 @@ async def valuation_mode_express(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(ValuationFlow.mode_select, F.data == "valuation:mode:excel")
+@router.callback_query(F.data == "valuation:mode:excel")
 async def valuation_mode_excel(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await callback.answer()
     await callback.message.answer(VALUATION_EXCEL_TEXT, reply_markup=valuation_excel_offer_keyboard())
 
 
-@router.callback_query(ValuationFlow.mode_select, F.data == "valuation:mode:faq")
+@router.callback_query(F.data == "valuation:mode:faq")
 async def valuation_mode_faq(callback: CallbackQuery):
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
@@ -1081,8 +1527,11 @@ async def valuation_mode_faq(callback: CallbackQuery):
     await send_valuation_faq_topics(callback.message)
 
 
-@router.callback_query(ValuationFlow.mode_select, F.data == "valuation:express:start")
+@router.callback_query(F.data == "valuation:express:start")
 async def valuation_express_start(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await state.set_state(ValuationFlow.express_revenue)
@@ -1490,6 +1939,9 @@ async def valuation_send_precise_result(target: Message | CallbackQuery, state: 
 
 @router.callback_query(F.data == "valuation:excel:download")
 async def valuation_post_excel_download(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await send_excel_and_wait_for_user(callback, state)
@@ -1497,6 +1949,9 @@ async def valuation_post_excel_download(callback: CallbackQuery, state: FSMConte
 
 @router.callback_query(F.data == "valuation:excel:menu")
 async def valuation_post_back_to_menu(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await return_to_base_state(callback.message, state, THANKS_TOOL_TEXT)
@@ -1752,8 +2207,11 @@ async def simulate_precise_margin(message: Message, state: FSMContext):
     await finalize_precise_assessment(message, state)
 
 
-@router.callback_query(SimulateFlow.mode_select, F.data.in_({"simulate:precise:more", "simulate:precise:more5"}))
+@router.callback_query(F.data.in_({"simulate:precise:more", "simulate:precise:more5"}))
 async def simulate_precise_more(callback: CallbackQuery, state: FSMContext):
+    if await reject_inactive_tool_callback(callback, state):
+        return
+
     if not await ensure_simulate_consent(callback, state):
         return
 
@@ -2310,3 +2768,31 @@ async def simulate_wait_excel_invalid(message: Message):
         "Пожалуйста, отправьте Excel-файл (.xlsx/.xls/.xlsm) или используйте кнопки ниже.",
         reply_markup=simulate_deep_wait_keyboard(),
     )
+
+
+@router.message()
+async def unexpected_message(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    user_id = await get_db_user_id(message)
+    await add_event(
+        user_id,
+        "unexpected_message",
+        f"state={current_state};has_text={bool(message.text)};has_document={bool(message.document)}",
+    )
+
+    if current_state:
+        await message.answer(
+            "Простите, сейчас я жду ответ на текущий вопрос или нажатие кнопки. "
+            "Если хотите выйти из сценария, нажмите «🏠 В меню» или «❌ Отменить».",
+        )
+        return
+
+    await message.answer(
+        "Простите, не знаю, что с этим делать. Выберите раздел в меню ниже 👇",
+        reply_markup=persistent_main_keyboard(),
+    )
+
+
+@router.callback_query()
+async def unknown_callback(callback: CallbackQuery, state: FSMContext):
+    await answer_stale_callback(callback, state)
