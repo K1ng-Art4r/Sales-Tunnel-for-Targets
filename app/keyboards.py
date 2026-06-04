@@ -423,7 +423,6 @@ def valuation_excel_offer_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📥 Скачать Excel-файл", callback_data="valuation:excel:download")],
-            [InlineKeyboardButton(text="↩️ В меню", callback_data="valuation:excel:menu")],
         ]
     )
 
@@ -446,7 +445,6 @@ def valuation_faq_topics_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="Внедрение ИИ", callback_data="valuation:faq:topic:ai")],
             [InlineKeyboardButton(text="Что меняется в фирме", callback_data="valuation:faq:topic:changes")],
             [InlineKeyboardButton(text="Юридические вопросы", callback_data="valuation:faq:topic:legal")],
-            [InlineKeyboardButton(text="↩️ В меню", callback_data="valuation:excel:menu")],
         ]
     )
 
