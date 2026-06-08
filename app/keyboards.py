@@ -46,6 +46,23 @@ def tool_navigation_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def onboarding_menu_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Новости, события, новые партнёры", callback_data="stub:events")],
+            [InlineKeyboardButton(text="💰 Калькулятор вашей экономии", callback_data="tool:simulate")],
+            [InlineKeyboardButton(text="📈 Сделка и рост", callback_data="tool:valuation")],
+            [InlineKeyboardButton(text="📅 Запись на встречу со специалистом", callback_data="stub:book_meeting")],
+            [
+                InlineKeyboardButton(
+                    text="🎁 Анализатор клиентских чатов",
+                    callback_data="gift:chat_analyzer",
+                )
+            ],
+        ]
+    )
+
+
 def menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

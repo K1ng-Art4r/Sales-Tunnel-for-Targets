@@ -32,6 +32,7 @@ from app.keyboards import (
     meeting_slots_keyboard,
     meeting_waiting_keyboard,
     menu_keyboard,
+    onboarding_menu_keyboard,
     persistent_main_keyboard,
     tool_navigation_keyboard,
     website_optional_keyboard,
@@ -74,7 +75,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 URL_RE = re.compile(r"^(https?://)?(www\.)?[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)+(/.*)?$", re.IGNORECASE)
 
 ONBOARDING_PROMO_TEXT = (
-    "👋 Добро пожаловать в Aivel!\n"
+    "Добро пожаловать в Aivel!\n"
     "Мы автоматизируем до 95% бухгалтерских операций с помощью AI. "
     "Забудьте о проблемах с наймом — фокусируйтесь на продажах и клиентах.\n\n"
     "Что здесь:\n"
@@ -82,8 +83,27 @@ ONBOARDING_PROMO_TEXT = (
     "💰 Калькулятор вашей экономии\n"
     "📈 Сделка и рост\n"
     "📅 Запись на встречу со специалистом\n\n"
-    "Выберите раздел в меню ниже 👇"
+    "Выберите раздел в меню ниже 👇\n\n"
+    "🎁 У нас для вас приятный подарок: "
+    "Анализатор клиентских чатов в Битрикс24 и Telegram (нажмите здесь)"
 )
+
+CHAT_ANALYZER_GIFT_TEXT = (
+    "Как за 15 минут увидеть, что происходит в переписке вашего сотрудника с клиентом — "
+    "не читая весь чат\n"
+    "Мы подготовили промпт для ChatGPT, который анализирует переписку и выдаёт "
+    "структурированный отчёт.\n\n"
+    "Вы получаете:\n"
+    "— 🔴 Уровень риска — где ситуация близка к конфликту\n"
+    "— ⚠️ Претензию — явное и скрытое недовольство клиента\n"
+    "— 💬 Оценку формата общения — насколько профессионально отвечает сотрудник\n"
+    "— 🎯 Готовую рекомендацию — что именно проверить и кому позвонить\n"
+    "— ✉️ Готовый ответ клиенту — можно сразу передать сотруднику\n\n"
+    "Работает с Telegram и Битрикс24. Несколько клиентов — одним запросом, "
+    "получите сводку по всем.\n"
+    "Никаких новых сервисов — только ChatGPT (бесплатно) и 15 минут времени."
+)
+CHAT_ANALYZER_PDF_PATH = PROJECT_ROOT / "aivel_gift_for_buhexpo.pdf"
 
 TOOL_PLACEHOLDER_TEXT = (
     "Инструмент пока в режиме заглушки."
@@ -219,7 +239,12 @@ async def get_db_user_id(message_or_callback: Message | CallbackQuery) -> int:
 
 
 async def send_onboarding_complete(message: Message):
-    await message.answer(ONBOARDING_PROMO_TEXT, parse_mode="HTML", reply_markup=persistent_main_keyboard())
+    await message.answer(
+        ONBOARDING_PROMO_TEXT,
+        parse_mode="HTML",
+        reply_markup=onboarding_menu_keyboard(),
+    )
+
 
 
 def parse_positive_int(raw_value: str) -> int | None:
@@ -1142,6 +1167,24 @@ async def open_valuation_from_keyboard(message: Message, state: FSMContext):
 @router.callback_query(F.data == "tool:simulate")
 async def open_simulate_from_menu(callback: CallbackQuery, state: FSMContext):
     await open_tool_flow(callback, state, "simulate")
+
+
+@router.callback_query(F.data == "gift:chat_analyzer")
+async def send_chat_analyzer_gift(callback: CallbackQuery):
+    user_id = await get_db_user_id(callback)
+
+    if not CHAT_ANALYZER_PDF_PATH.exists():
+        await add_event(user_id, "chat_analyzer_gift_missing")
+        await callback.answer("PDF-файл пока не найден", show_alert=True)
+        return
+
+    await callback.message.answer_document(
+        document=FSInputFile(CHAT_ANALYZER_PDF_PATH),
+        caption="🎁 Анализатор клиентских чатов в Битрикс24 и Telegram",
+    )
+    await add_event(user_id, "chat_analyzer_gift_sent", CHAT_ANALYZER_PDF_PATH.name)
+    await callback.message.answer(CHAT_ANALYZER_GIFT_TEXT)
+    await callback.answer()
 
 
 @router.callback_query(F.data == "tool:valuation")
