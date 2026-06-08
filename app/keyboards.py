@@ -24,7 +24,7 @@ def _safe_calendly_link() -> str:
 def persistent_main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Меню бота")],
+            [KeyboardButton(text="Меню")],
             [KeyboardButton(text="Калькулятор экономии")],
             [KeyboardButton(text="Сделка и рост")],
         ],
@@ -43,6 +43,19 @@ def tool_navigation_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         is_persistent=True,
         input_field_placeholder="Управление инструментом",
+    )
+
+
+def gift_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🎁 Анализатор клиентских чатов",
+                    callback_data="gift:chat_analyzer",
+                )
+            ],
+        ]
     )
 
 
