@@ -32,7 +32,7 @@ from app.keyboards import (
     meeting_slots_keyboard,
     meeting_waiting_keyboard,
     menu_keyboard,
-    onboarding_menu_keyboard,
+    gift_keyboard,
     persistent_main_keyboard,
     tool_navigation_keyboard,
     website_optional_keyboard,
@@ -83,9 +83,8 @@ ONBOARDING_PROMO_TEXT = (
     "💰 Калькулятор вашей экономии\n"
     "📈 Сделка и рост\n"
     "📅 Запись на встречу со специалистом\n\n"
-    "Выберите раздел в меню ниже 👇\n\n"
     "🎁 У нас для вас приятный подарок: "
-    "Анализатор клиентских чатов в Битрикс24 и Telegram (нажмите здесь)"
+    "Анализатор клиентских чатов в Битрикс24 и Telegram"
 )
 
 CHAT_ANALYZER_GIFT_TEXT = (
@@ -103,7 +102,7 @@ CHAT_ANALYZER_GIFT_TEXT = (
     "получите сводку по всем.\n"
     "Никаких новых сервисов — только ChatGPT (бесплатно) и 15 минут времени."
 )
-CHAT_ANALYZER_PDF_PATH = PROJECT_ROOT / "aivel_gift_for_buhexpo.pdf"
+CHAT_ANALYZER_PDF_PATH = PROJECT_ROOT / "Анализ_качества_переписки_с_клиентом.pdf"
 
 TOOL_PLACEHOLDER_TEXT = (
     "Инструмент пока в режиме заглушки."
@@ -242,8 +241,9 @@ async def send_onboarding_complete(message: Message):
     await message.answer(
         ONBOARDING_PROMO_TEXT,
         parse_mode="HTML",
-        reply_markup=onboarding_menu_keyboard(),
+        reply_markup=gift_keyboard(),
     )
+    await message.answer("Выберите раздел в меню ниже 👇", reply_markup=persistent_main_keyboard())
 
 
 
@@ -748,7 +748,7 @@ async def cmd_start(message: Message, state: FSMContext):
     await send_onboarding_complete(message)
 
 
-@router.message(F.text == "Меню бота")
+@router.message(F.text.in_({"Меню", "Меню бота"}))
 async def open_menu(message: Message, state: FSMContext):
     await show_main_menu(message, state)
 
