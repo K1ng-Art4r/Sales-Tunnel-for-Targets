@@ -75,7 +75,6 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 URL_RE = re.compile(r"^(https?://)?(www\.)?[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)+(/.*)?$", re.IGNORECASE)
-SUPPORT_NAME_RE = re.compile(r"^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё\s'-]{2,}$")
 SUPPORT_PHONE_RE = re.compile(r"^\+?[0-9()\s.-]{10,20}$")
 
 ONBOARDING_PROMO_TEXT = (
@@ -273,9 +272,7 @@ async def send_onboarding_complete(message: Message):
 
 
 def is_valid_support_name(value: str) -> bool:
-    normalized = " ".join(value.strip().split())
-    letters_count = sum(char.isalpha() for char in normalized)
-    return bool(SUPPORT_NAME_RE.match(normalized)) and letters_count >= 3
+    return bool(value.strip())
 
 
 def is_valid_support_phone(value: str) -> bool:
@@ -1296,10 +1293,7 @@ async def support_program_join(callback: CallbackQuery, state: FSMContext):
 async def support_program_contact_name(message: Message, state: FSMContext):
     name = " ".join(message.text.strip().split())
     if not is_valid_support_name(name):
-        await message.answer(
-            "Пожалуйста, введите настоящее имя: минимум 3 буквы, без цифр и случайных символов.\n"
-            "Например: Мария или Мария Иванова"
-        )
+        await message.answer("Пожалуйста, введите имя текстом. Например: Ян или Мария")
         return
 
     user_id = (await state.get_data()).get("db_user_id") or await get_db_user_id(message)
