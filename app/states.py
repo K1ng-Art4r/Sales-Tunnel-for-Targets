@@ -41,3 +41,10 @@ class ValuationFlow(StatesGroup):
     precise_automation_level = State()
     precise_automation_tools = State()
     precise_post_result = State()
+
+
+class SupportProgramFlow(StatesGroup):
+    contact_name = State()
+    contact_phone = State()
+    contact_email = State()
+    business_stage = State()
