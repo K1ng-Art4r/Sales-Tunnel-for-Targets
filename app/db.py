@@ -44,12 +44,15 @@ ALLOWED_FUNNEL_FIELDS = {
     "valuation_auto_other",
     "valuation_rfcomp",
     "valuation_new_result_mln",
+    "support_program_registered",
+    "business_stage",
 }
 ALLOWED_STANDARDIZATION = {"high", "medium", "low"}
 ALLOWED_AUTOMATION = {"none", "partial", "systems"}
 ALLOWED_ADVISORY = {"lt10", "10_20", "gt20"}
 ALLOWED_GROWTH = {"none", "normal", "fast"}
 ALLOWED_MNA = {"yes", "no"}
+ALLOWED_BUSINESS_STAGE = {"owner", "want_to_open"}
 
 
 async def get_connection():
@@ -121,6 +124,8 @@ async def init_db():
                     valuation_auto_other TEXT,
                     valuation_rfcomp DOUBLE PRECISION,
                     valuation_new_result_mln DOUBLE PRECISION,
+                    support_program_registered BOOLEAN DEFAULT FALSE,
+                    business_stage TEXT CHECK (business_stage IN ('owner', 'want_to_open')),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
@@ -181,6 +186,11 @@ async def init_db():
             await cur.execute("""ALTER TABLE users ADD COLUMN IF NOT EXISTS valuation_auto_other TEXT;""")
             await cur.execute("""ALTER TABLE users ADD COLUMN IF NOT EXISTS valuation_rfcomp DOUBLE PRECISION;""")
             await cur.execute("""ALTER TABLE users ADD COLUMN IF NOT EXISTS valuation_new_result_mln DOUBLE PRECISION;""")
+            await cur.execute("""ALTER TABLE users ADD COLUMN IF NOT EXISTS support_program_registered BOOLEAN DEFAULT FALSE;""")
+            await cur.execute(
+                """ALTER TABLE users ADD COLUMN IF NOT EXISTS business_stage TEXT
+                   CHECK (business_stage IN ('owner', 'want_to_open'));"""
+            )
 
             await cur.execute("""ALTER TABLE users DROP COLUMN IF EXISTS lead_email;""")
             await cur.execute("""ALTER TABLE users DROP COLUMN IF EXISTS lead_telegram;""")
@@ -310,6 +320,8 @@ async def save_funnel_fields(user_id: int, **fields):
         raise ValueError(f"Недопустимый рост: {fields['growth_band']}")
     if "mna_interest" in fields and fields["mna_interest"] not in ALLOWED_MNA:
         raise ValueError(f"Недопустимый M&A: {fields['mna_interest']}")
+    if "business_stage" in fields and fields["business_stage"] not in ALLOWED_BUSINESS_STAGE:
+        raise ValueError(f"Недопустимый этап бизнеса: {fields['business_stage']}")
 
     set_parts = []
     values = []
@@ -390,7 +402,9 @@ async def get_users_for_export():
                     valuation_auto_tools,
                     valuation_auto_other,
                     valuation_rfcomp,
-                    valuation_new_result_mln
+                    valuation_new_result_mln,
+                    support_program_registered,
+                    business_stage
                 FROM users
                 ORDER BY id ASC;
             """)
