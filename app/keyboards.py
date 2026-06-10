@@ -55,6 +55,33 @@ def gift_keyboard() -> InlineKeyboardMarkup:
                     callback_data="gift:chat_analyzer",
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text="👨‍🏫 Присоединяйтесь прямо сейчас",
+                    callback_data="support_program:join",
+                )
+            ],
+        ]
+    )
+
+
+def support_program_navigation_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🏠 В Меню"), KeyboardButton(text="↩️ Назад")],
+            [KeyboardButton(text="❌ Отменить")],
+        ],
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="Заполните данные",
+    )
+
+
+def support_program_business_stage_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Вы владелец фирмы?", callback_data="support_program:stage:owner")],
+            [InlineKeyboardButton(text="Хотите открыть собственную фирму?", callback_data="support_program:stage:want_to_open")],
         ]
     )
 

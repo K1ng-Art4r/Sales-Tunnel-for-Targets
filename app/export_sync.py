@@ -83,6 +83,8 @@ EXPORT_COLUMNS = [
     "valuation_auto_other",
     "valuation_rfcomp",
     "valuation_new_result_mln",
+    "support_program_registered",
+    "business_stage",
 ]
 
 
