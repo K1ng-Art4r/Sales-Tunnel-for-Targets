@@ -75,6 +75,7 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 URL_RE = re.compile(r"^(https?://)?(www\.)?[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)+(/.*)?$", re.IGNORECASE)
+SUPPORT_PHONE_RE = re.compile(r"^\+?[0-9()\s.-]{10,20}$")
 
 ONBOARDING_PROMO_TEXT = (
     "Добро пожаловать в Aivel!\n"
@@ -94,18 +95,20 @@ ONBOARDING_PROMO_TEXT = (
 
 
 SUPPORT_PROGRAM_INTRO_TEXT = (
-    "У вас уже есть своя фирма или вы только планируете её открыть? "
-    "Получите поддержку от владельца бизнеса из нашей сети. В рамках программы поддержки "
-    "будут доступны эфиры и материалы от экспертов и партнеров. Ближайшая сессия "
-    "запланирована с Натальей Бланкет, Учередитель и Генеральный директор компании, "
-    "обслуживающей 400+ клиентов, опытный наставник.\n"
-    "Чтобы зарегистрироваться, просто укажите свое имя, номер телефона и адрес электронной почты."
+    "👨‍🏫 <b>Программа поддержки бизнеса</b>\n\n"
+    "У вас уже есть своя фирма или вы только планируете её открыть?\n\n"
+    "🤝 Получите поддержку от владельца бизнеса из нашей сети. В рамках программы "
+    "поддержки будут доступны эфиры и материалы от экспертов и партнеров.\n\n"
+    "⭐️ <b>Ближайшая сессия</b> запланирована с Натальей Бланкет — учредителем "
+    "и генеральным директором компании, обслуживающей 400+ клиентов, опытным наставником.\n\n"
+    "📝 Чтобы зарегистрироваться, укажите свое имя, номер телефона и адрес электронной почты."
 )
 SUPPORT_PROGRAM_FINAL_TEXT = (
-    "Спасибо за регистрацию, мы скоро пришлем вам информацию. А пока узнайте больше "
-    "о компании AIVEL и о нашем предложении по сотрудничеству прямо в этом боте "
-    "(воспользуйтесь меню). Здесь мы также регулярно делимся новостями, полезными "
-    "советами и примерами из практики."
+    "✅ <b>Спасибо за регистрацию!</b>\n\n"
+    "Мы скоро пришлем вам информацию.\n\n"
+    "А пока узнайте больше о компании AIVEL и о нашем предложении по сотрудничеству "
+    "прямо в этом боте — воспользуйтесь меню.\n\n"
+    "Здесь мы также регулярно делимся новостями, полезными советами и примерами из практики."
 )
 
 CHAT_ANALYZER_GIFT_TEXT = (
@@ -266,6 +269,20 @@ async def send_onboarding_complete(message: Message):
     )
     await message.answer("Выберите раздел в меню ниже 👇", reply_markup=persistent_main_keyboard())
 
+
+
+def is_valid_support_name(value: str) -> bool:
+    return bool(value.strip())
+
+
+def is_valid_support_phone(value: str) -> bool:
+    normalized = value.strip()
+    digits = re.sub(r"\D", "", normalized)
+    return bool(SUPPORT_PHONE_RE.match(normalized)) and 10 <= len(digits) <= 15
+
+
+def is_valid_support_email(value: str) -> bool:
+    return bool(MEETING_EMAIL_RE.match(value.strip().lower()))
 
 
 def parse_positive_int(raw_value: str) -> int | None:
@@ -1265,6 +1282,7 @@ async def support_program_join(callback: CallbackQuery, state: FSMContext):
     await add_event(user_id, "support_program_join_clicked")
     await callback.message.answer(
         SUPPORT_PROGRAM_INTRO_TEXT,
+        parse_mode="HTML",
         reply_markup=support_program_navigation_keyboard(),
     )
     await callback.message.answer("Введите ваше имя:")
@@ -1273,7 +1291,11 @@ async def support_program_join(callback: CallbackQuery, state: FSMContext):
 
 @router.message(SupportProgramFlow.contact_name, F.text)
 async def support_program_contact_name(message: Message, state: FSMContext):
-    name = message.text.strip()
+    name = " ".join(message.text.strip().split())
+    if not is_valid_support_name(name):
+        await message.answer("Пожалуйста, введите имя текстом. Например: Ян или Мария")
+        return
+
     user_id = (await state.get_data()).get("db_user_id") or await get_db_user_id(message)
     await state.update_data(db_user_id=user_id, contact_name=name)
     await save_funnel_fields(int(user_id), contact_name=name)
@@ -1284,6 +1306,13 @@ async def support_program_contact_name(message: Message, state: FSMContext):
 @router.message(SupportProgramFlow.contact_phone, F.text)
 async def support_program_contact_phone(message: Message, state: FSMContext):
     phone = message.text.strip()
+    if not is_valid_support_phone(phone):
+        await message.answer(
+            "Пожалуйста, введите корректный номер телефона: 10–15 цифр, можно с + и пробелами.\n"
+            "Например: +7 999 123-45-67"
+        )
+        return
+
     user_id = (await state.get_data()).get("db_user_id") or await get_db_user_id(message)
     await state.update_data(db_user_id=user_id, contact_phone=phone)
     await save_funnel_fields(int(user_id), contact_phone=phone)
@@ -1293,7 +1322,11 @@ async def support_program_contact_phone(message: Message, state: FSMContext):
 
 @router.message(SupportProgramFlow.contact_email, F.text)
 async def support_program_contact_email(message: Message, state: FSMContext):
-    email = message.text.strip()
+    email = message.text.strip().lower()
+    if not is_valid_support_email(email):
+        await message.answer("Пожалуйста, введите корректный email. Например: name@company.com")
+        return
+
     user_id = (await state.get_data()).get("db_user_id") or await get_db_user_id(message)
     await state.update_data(db_user_id=user_id, contact_email=email)
     await save_funnel_fields(int(user_id), contact_email=email)
@@ -1315,7 +1348,7 @@ async def support_program_business_stage(callback: CallbackQuery, state: FSMCont
     await save_funnel_fields(int(user_id), business_stage=stage, support_program_registered=True)
     await add_event(user_id, "support_program_registered", stage)
     await state.clear()
-    await callback.message.answer(SUPPORT_PROGRAM_FINAL_TEXT, reply_markup=persistent_main_keyboard())
+    await callback.message.answer(SUPPORT_PROGRAM_FINAL_TEXT, parse_mode="HTML", reply_markup=persistent_main_keyboard())
     await callback.answer()
 
 
