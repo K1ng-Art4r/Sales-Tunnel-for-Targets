@@ -33,6 +33,8 @@ from app.keyboards import (
     meeting_waiting_keyboard,
     menu_keyboard,
     gift_keyboard,
+    support_program_business_stage_keyboard,
+    support_program_navigation_keyboard,
     persistent_main_keyboard,
     tool_navigation_keyboard,
     website_optional_keyboard,
@@ -64,7 +66,7 @@ from app.scoring import (
     calculate_express_operation_savings,
     calculate_precise_savings_from_express,
 )
-from app.states import MeetingBookingFlow, SimulateFlow, ValuationFlow
+from app.states import MeetingBookingFlow, SimulateFlow, SupportProgramFlow, ValuationFlow
 
 router = Router()
 router.message.filter(F.from_user.is_bot == False)
@@ -73,6 +75,8 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 URL_RE = re.compile(r"^(https?://)?(www\.)?[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)+(/.*)?$", re.IGNORECASE)
+SUPPORT_NAME_RE = re.compile(r"^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё\s'-]{2,}$")
+SUPPORT_PHONE_RE = re.compile(r"^\+?[0-9()\s.-]{10,20}$")
 
 ONBOARDING_PROMO_TEXT = (
     "Добро пожаловать в Aivel!\n"
@@ -83,8 +87,29 @@ ONBOARDING_PROMO_TEXT = (
     "💰 Калькулятор вашей экономии\n"
     "📈 Сделка и рост\n"
     "📅 Запись на встречу со специалистом\n\n"
-    "🎁 У нас для вас приятный подарок: "
-    "Анализатор клиентских чатов в Битрикс24 и Telegram"
+    "🎁 У нас для вас приветственный подарок: "
+    "Анализатор клиентских чатов в Битрикс24 и Telegram (нажмите здесь)\n\n"
+    "👨‍🏫⭐️ Мы предлагаем программу поддержки вашего бизнеса — независимо от того, "
+    "начинаете ли вы с нуля или уже имеете опыт. Наше наставничество поможет вам "
+    "уверенно действовать с фокусом на рост. Присоединяйтесь прямо сейчас."
+)
+
+
+SUPPORT_PROGRAM_INTRO_TEXT = (
+    "👨‍🏫 <b>Программа поддержки бизнеса</b>\n\n"
+    "У вас уже есть своя фирма или вы только планируете её открыть?\n\n"
+    "🤝 Получите поддержку от владельца бизнеса из нашей сети. В рамках программы "
+    "поддержки будут доступны эфиры и материалы от экспертов и партнеров.\n\n"
+    "⭐️ <b>Ближайшая сессия</b> запланирована с Натальей Бланкет — учредителем "
+    "и генеральным директором компании, обслуживающей 400+ клиентов, опытным наставником.\n\n"
+    "📝 Чтобы зарегистрироваться, укажите свое имя, номер телефона и адрес электронной почты."
+)
+SUPPORT_PROGRAM_FINAL_TEXT = (
+    "✅ <b>Спасибо за регистрацию!</b>\n\n"
+    "Мы скоро пришлем вам информацию.\n\n"
+    "А пока узнайте больше о компании AIVEL и о нашем предложении по сотрудничеству "
+    "прямо в этом боте — воспользуйтесь меню.\n\n"
+    "Здесь мы также регулярно делимся новостями, полезными советами и примерами из практики."
 )
 
 CHAT_ANALYZER_GIFT_TEXT = (
@@ -247,6 +272,22 @@ async def send_onboarding_complete(message: Message):
 
 
 
+def is_valid_support_name(value: str) -> bool:
+    normalized = " ".join(value.strip().split())
+    letters_count = sum(char.isalpha() for char in normalized)
+    return bool(SUPPORT_NAME_RE.match(normalized)) and letters_count >= 3
+
+
+def is_valid_support_phone(value: str) -> bool:
+    normalized = value.strip()
+    digits = re.sub(r"\D", "", normalized)
+    return bool(SUPPORT_PHONE_RE.match(normalized)) and 10 <= len(digits) <= 15
+
+
+def is_valid_support_email(value: str) -> bool:
+    return bool(MEETING_EMAIL_RE.match(value.strip().lower()))
+
+
 def parse_positive_int(raw_value: str) -> int | None:
     normalized = raw_value.replace(" ", "").replace(",", "").replace("_", "")
     if not normalized.isdigit():
@@ -333,9 +374,17 @@ async def send_valuation_faq_topics(message: Message):
     )
 
 
+async def reset_support_program_if_active(state: FSMContext, user_id: int):
+    current_state = await state.get_state()
+    support_states = {flow_state.state for flow_state in SupportProgramFlow.__all_states__}
+    if current_state in support_states:
+        await save_funnel_fields(user_id, support_program_registered=False)
+
+
 async def show_main_menu(message: Message, state: FSMContext):
-    await state.clear()
     user_id = await get_db_user_id(message)
+    await reset_support_program_if_active(state, user_id)
+    await state.clear()
     await add_event(user_id, "menu_opened")
     await message.answer(
         "Главное меню. Нижняя клавиатура обновлена 👇",
@@ -756,6 +805,45 @@ async def open_menu(message: Message, state: FSMContext):
 @router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__, *MeetingBookingFlow.__all_states__)), F.text == "🏠 В меню")
 async def tool_nav_home(message: Message, state: FSMContext):
     await show_main_menu(message, state)
+
+
+@router.message(StateFilter(*SupportProgramFlow.__all_states__), F.text.in_({"🏠 В Меню", "🏠 В меню"}))
+async def support_program_home(message: Message, state: FSMContext):
+    user_id = await get_db_user_id(message)
+    await save_funnel_fields(user_id, support_program_registered=False)
+    await show_main_menu(message, state)
+
+
+@router.message(StateFilter(*SupportProgramFlow.__all_states__), F.text == "↩️ Назад")
+async def support_program_back(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    user_id = await get_db_user_id(message)
+
+    if current_state == SupportProgramFlow.contact_name.state:
+        await save_funnel_fields(user_id, support_program_registered=False)
+        await show_main_menu(message, state)
+        return
+    if current_state == SupportProgramFlow.contact_phone.state:
+        await state.set_state(SupportProgramFlow.contact_name)
+        await message.answer("Введите ваше имя:", reply_markup=support_program_navigation_keyboard())
+        return
+    if current_state == SupportProgramFlow.contact_email.state:
+        await state.set_state(SupportProgramFlow.contact_phone)
+        await message.answer("Введите ваш номер телефона:", reply_markup=support_program_navigation_keyboard())
+        return
+    if current_state == SupportProgramFlow.business_stage.state:
+        await state.set_state(SupportProgramFlow.contact_email)
+        await message.answer("Введите ваш адрес электронной почты:", reply_markup=support_program_navigation_keyboard())
+        return
+
+    await show_main_menu(message, state)
+
+
+@router.message(StateFilter(*SupportProgramFlow.__all_states__), F.text.in_({"❌ Отменить", "Отменить"}))
+async def support_program_cancel(message: Message, state: FSMContext):
+    user_id = await get_db_user_id(message)
+    await save_funnel_fields(user_id, support_program_registered=False)
+    await return_to_base_state(message, state, "Регистрация в программе поддержки отменена.")
 
 
 @router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__, *MeetingBookingFlow.__all_states__)), F.text == "❌ Отменить")
@@ -1184,6 +1272,89 @@ async def send_chat_analyzer_gift(callback: CallbackQuery):
     )
     await add_event(user_id, "chat_analyzer_gift_sent", CHAT_ANALYZER_PDF_PATH.name)
     await callback.message.answer(CHAT_ANALYZER_GIFT_TEXT)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "support_program:join")
+async def support_program_join(callback: CallbackQuery, state: FSMContext):
+    user_id = await get_db_user_id(callback)
+    await state.clear()
+    await save_funnel_fields(user_id, support_program_registered=True)
+    await state.update_data(db_user_id=user_id)
+    await state.set_state(SupportProgramFlow.contact_name)
+    await add_event(user_id, "support_program_join_clicked")
+    await callback.message.answer(
+        SUPPORT_PROGRAM_INTRO_TEXT,
+        parse_mode="HTML",
+        reply_markup=support_program_navigation_keyboard(),
+    )
+    await callback.message.answer("Введите ваше имя:")
+    await callback.answer()
+
+
+@router.message(SupportProgramFlow.contact_name, F.text)
+async def support_program_contact_name(message: Message, state: FSMContext):
+    name = " ".join(message.text.strip().split())
+    if not is_valid_support_name(name):
+        await message.answer(
+            "Пожалуйста, введите настоящее имя: минимум 3 буквы, без цифр и случайных символов.\n"
+            "Например: Мария или Мария Иванова"
+        )
+        return
+
+    user_id = (await state.get_data()).get("db_user_id") or await get_db_user_id(message)
+    await state.update_data(db_user_id=user_id, contact_name=name)
+    await save_funnel_fields(int(user_id), contact_name=name)
+    await state.set_state(SupportProgramFlow.contact_phone)
+    await message.answer("Введите ваш номер телефона:", reply_markup=support_program_navigation_keyboard())
+
+
+@router.message(SupportProgramFlow.contact_phone, F.text)
+async def support_program_contact_phone(message: Message, state: FSMContext):
+    phone = message.text.strip()
+    if not is_valid_support_phone(phone):
+        await message.answer(
+            "Пожалуйста, введите корректный номер телефона: 10–15 цифр, можно с + и пробелами.\n"
+            "Например: +7 999 123-45-67"
+        )
+        return
+
+    user_id = (await state.get_data()).get("db_user_id") or await get_db_user_id(message)
+    await state.update_data(db_user_id=user_id, contact_phone=phone)
+    await save_funnel_fields(int(user_id), contact_phone=phone)
+    await state.set_state(SupportProgramFlow.contact_email)
+    await message.answer("Введите ваш адрес электронной почты:", reply_markup=support_program_navigation_keyboard())
+
+
+@router.message(SupportProgramFlow.contact_email, F.text)
+async def support_program_contact_email(message: Message, state: FSMContext):
+    email = message.text.strip().lower()
+    if not is_valid_support_email(email):
+        await message.answer("Пожалуйста, введите корректный email. Например: name@company.com")
+        return
+
+    user_id = (await state.get_data()).get("db_user_id") or await get_db_user_id(message)
+    await state.update_data(db_user_id=user_id, contact_email=email)
+    await save_funnel_fields(int(user_id), contact_email=email)
+    await state.set_state(SupportProgramFlow.business_stage)
+    await message.answer(
+        "Выберите подходящий вариант:",
+        reply_markup=support_program_business_stage_keyboard(),
+    )
+
+
+@router.callback_query(SupportProgramFlow.business_stage, F.data.startswith("support_program:stage:"))
+async def support_program_business_stage(callback: CallbackQuery, state: FSMContext):
+    stage = (callback.data or "").split(":")[-1]
+    if stage not in {"owner", "want_to_open"}:
+        await callback.answer("Неизвестный вариант", show_alert=True)
+        return
+
+    user_id = (await state.get_data()).get("db_user_id") or await get_db_user_id(callback)
+    await save_funnel_fields(int(user_id), business_stage=stage, support_program_registered=True)
+    await add_event(user_id, "support_program_registered", stage)
+    await state.clear()
+    await callback.message.answer(SUPPORT_PROGRAM_FINAL_TEXT, parse_mode="HTML", reply_markup=persistent_main_keyboard())
     await callback.answer()
 
 
