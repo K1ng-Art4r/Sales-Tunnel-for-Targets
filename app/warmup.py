@@ -83,14 +83,29 @@ def _parse_send_at(date_raw: str, time_raw: str, tz_name: str) -> datetime | Non
     if not date_raw:
         return None
 
-    dt_value = f"{date_raw.strip()} {time_raw.strip()}".strip()
+    date_value = date_raw.strip()
+    time_value = time_raw.strip().replace("\u202f", " ").replace("\xa0", " ")
+    dt_value = " ".join(part for part in (date_value, time_value) if part).strip()
     resolved_tz = _resolve_timezone(tz_name)
-    for fmt in ("%d.%m.%Y %H:%M", "%d.%m.%Y", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+    for fmt in (
+        "%d.%m.%Y %H:%M:%S",
+        "%d.%m.%Y %H:%M",
+        "%d.%m.%Y %I:%M:%S %p",
+        "%d.%m.%Y %I:%M %p",
+        "%d.%m.%Y",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d %I:%M:%S %p",
+        "%Y-%m-%d %I:%M %p",
+        "%Y-%m-%d",
+    ):
         try:
             parsed = datetime.strptime(dt_value, fmt)
             return parsed.replace(tzinfo=resolved_tz)
         except ValueError:
             continue
+
+    logger.warning("Could not parse push post date/time: date=%r time=%r timezone=%r", date_raw, time_raw, tz_name)
     return None
 
 
@@ -290,6 +305,7 @@ async def refresh_week_schedule(bot: Bot, scheduler: AsyncIOScheduler):
         if job.id.startswith("push:"):
             scheduler.remove_job(job.id)
 
+    scheduled_count = 0
     for post in posts:
         if post.post_id.upper() == "POST-001":
             continue
@@ -307,8 +323,9 @@ async def refresh_week_schedule(bot: Bot, scheduler: AsyncIOScheduler):
             id=f"push:{post.post_id}:{send_at.isoformat()}",
             replace_existing=True,
         )
+        scheduled_count += 1
 
-    logger.info("Push schedule refreshed. Planned posts for current week: %s", len([p for p in posts if p.send_at]))
+    logger.info("Push schedule refreshed. Scheduled future posts for current week: %s", scheduled_count)
 
 
 def setup_scheduler(bot: Bot) -> AsyncIOScheduler:

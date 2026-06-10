@@ -112,7 +112,7 @@ EXPORT_SHEETS_OAUTH_CLIENT_SECRET=<oauth_client_secret_для_авторефре
 EXPORT_SHEETS_OAUTH_REFRESH_TOKEN=<oauth_refresh_token_для_авторефреша>
 EXPORT_SHEETS_OAUTH_TOKEN_URL=https://oauth2.googleapis.com/token
 EXPORT_SHEETS_SPREADSHEET_ID=<id_таблицы_для_выгрузки>
-EXPORT_SHEETS_RANGE=users_export!A1:AB
+EXPORT_SHEETS_RANGE=users_export!A1:AR
 EXPORT_SYNC_INTERVAL_MINUTES=5
 ```
 
