@@ -5,7 +5,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from urllib.request import urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 WELCOME_POST_DELAY_MINUTES = 1  # send POST-001 one minute after registration
 WELCOME_POST_CHECK_INTERVAL_MINUTES = 1
 LOG_PREVIEW_LIMIT = 120
+CALCULATOR_LINK_TOKENS = {"ссылканакалькулятор", "калькулятор", "калькуляторэкономии"}
+MEETING_LINK_TOKENS = {"записатьсянавстречу", "записьнавстречу", "встреча"}
 TIMEZONE_ALIASES = {
     "moscow": "Europe/Moscow",
     "msk": "Europe/Moscow",
@@ -61,10 +63,35 @@ def _format_post_for_log(post: PushPost) -> dict[str, str | bool]:
         "title": _preview(post.title),
         "text": _preview(post.text),
         "cta": _preview(post.cta),
+        "link": _preview(post.link),
+        "media": _preview(post.media),
         "has_link": bool(post.link),
         "has_media": bool(post.media),
         "send_at": post.send_at.isoformat() if post.send_at else "",
     }
+
+
+def _is_valid_button_url(value: str) -> bool:
+    parsed = urlparse(value.strip())
+    if parsed.scheme in {"http", "https"}:
+        return bool(parsed.netloc)
+    if parsed.scheme == "tg":
+        return bool(parsed.netloc or parsed.path)
+    return False
+
+
+def _normalize_link_command(value: str) -> str:
+    normalized = value.strip().casefold().replace("ё", "е")
+    return "".join(char for char in normalized if char.isalnum())
+
+
+def _resolve_link_callback(value: str) -> str | None:
+    normalized = _normalize_link_command(value)
+    if normalized in CALCULATOR_LINK_TOKENS:
+        return "tool:simulate"
+    if normalized in MEETING_LINK_TOKENS:
+        return "stub:book_meeting"
+    return None
 
 
 def _normalize_header(value: str) -> str:
@@ -179,6 +206,7 @@ def _build_text(post: PushPost) -> str:
 
 def _build_keyboard(post: PushPost) -> InlineKeyboardMarkup | None:
     if not post.cta:
+        logger.info("Push keyboard skipped without CTA: post_id=%s", post.post_id)
         return None
 
     if post.post_id.upper() == "POST-001":
@@ -186,12 +214,36 @@ def _build_keyboard(post: PushPost) -> InlineKeyboardMarkup | None:
             inline_keyboard=[[InlineKeyboardButton(text=post.cta, callback_data="tool:simulate")]]
         )
 
-    if post.link:
+    if not post.link:
+        logger.info("Push keyboard skipped without link: post_id=%s cta=%r", post.post_id, _preview(post.cta))
+        return None
+
+    callback_data = _resolve_link_callback(post.link)
+    if callback_data:
+        logger.info(
+            "Push keyboard uses internal callback destination: post_id=%s link_command=%r callback_data=%s",
+            post.post_id,
+            _preview(post.link),
+            callback_data,
+        )
         return InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text=post.cta, url=post.link)]]
+            inline_keyboard=[[InlineKeyboardButton(text=post.cta, callback_data=callback_data)]]
         )
 
-    return None
+    if not _is_valid_button_url(post.link):
+        logger.warning(
+            "Push keyboard skipped; post will be sent without a button because link is neither a known "
+            "internal destination nor a valid Telegram button URL: post_id=%s cta=%r link=%r normalized_link=%r",
+            post.post_id,
+            _preview(post.cta),
+            _preview(post.link),
+            _normalize_link_command(post.link),
+        )
+        return None
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=post.cta, url=post.link.strip())]]
+    )
 
 
 def fetch_push_posts() -> list[PushPost]:
@@ -318,13 +370,29 @@ async def _send_post_to_user(bot: Bot, user: dict, post: PushPost):
 
     try:
         if post.media:
-            await bot.send_photo(
-                chat_id=telegram_id,
-                photo=post.media,
-                caption=text,
-                parse_mode="HTML",
-                reply_markup=keyboard,
-            )
+            try:
+                await bot.send_photo(
+                    chat_id=telegram_id,
+                    photo=post.media,
+                    caption=text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+            except Exception as media_exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to send push post as photo, falling back to text message: post_id=%s telegram_id=%s media=%r error=%s",
+                    post.post_id,
+                    telegram_id,
+                    _preview(post.media),
+                    media_exc,
+                )
+                await bot.send_message(
+                    chat_id=telegram_id,
+                    text=text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                    disable_web_page_preview=True,
+                )
         else:
             await bot.send_message(
                 chat_id=telegram_id,
