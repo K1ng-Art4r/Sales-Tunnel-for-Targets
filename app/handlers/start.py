@@ -127,7 +127,7 @@ CHAT_ANALYZER_GIFT_TEXT = (
     "получите сводку по всем.\n"
     "Никаких новых сервисов — только ChatGPT (бесплатно) и 15 минут времени."
 )
-CHAT_ANALYZER_PDF_PATH = PROJECT_ROOT / "Анализ_качества_переписки_с_клиентом.pdf"
+CHAT_ANALYZER_PDF_PATH = PROJECT_ROOT / "app" / "assets" / "Анализ_качества_переписки_с_клиентом.pdf"
 
 TOOL_PLACEHOLDER_TEXT = (
     "Инструмент пока в режиме заглушки."
@@ -148,7 +148,7 @@ SIMULATE_MODE_TEXT = (
 SIMULATE_PRO_TEXT = (
     "🎯 Серьёзно рассматриваете внедрение? Загрузите Excel — получите полный бизнес-кейс от нашей команды.\n"
     "📥 Скачать Excel-файл\n"
-    "📤 Заполнили? Загрузить обратно или отправьте это на: success@aivel.ai\n"
+    "📤 Заполнили? Загрузить обратно или отправьте это на: info@aivel.ai\n"
     "После загрузки мы подготовим детальный бизнес-кейс и свяжемся с вами в течение 2 рабочих дней.\n\n"
     "📊 Что внутри Excel-опросника?\n\n"
     "1️⃣ Цифры (Лист 1) — 20 полей, 25-30 минут\n"
@@ -205,7 +205,7 @@ VALUATION_PROFITABILITY_MAP = {
 }
 WAIT_FILE_TEXT = (
     "Ожидаем ваш файл.\n\n"
-    "Вы можете загрузить Excel сюда или нажать «Отправил по почте», если уже отправили на success@aivel.ai."
+    "Вы можете загрузить Excel сюда или нажать «Отправил по почте», если уже отправили на info@aivel.ai."
 )
 THANKS_DEEP_TEXT = "Спасибо! С вами свяжутся в течение 2 рабочих дней."
 THANKS_TOOL_TEXT = "Спасибо, что воспользовались нашим инструментом, надеемся он оказался полезным."
@@ -251,7 +251,7 @@ VALUATION_EXCEL_TEXT = (
     "Загрузите Excel — получите полный бизнес-кейс от нашей команды."
 )
 VALUATION_MODELS_IMAGE_URL = "https://disk.yandex.com/i/SXmB484oG0gfzg"
-VALUATION_ROLES_IMAGE_URL = "https://disk.yandex.com/i/bxE4nm-98rX3aA"
+VALUATION_ROLES_IMAGE_PATH = PROJECT_ROOT / "app" / "assets" / "picture_matrics_of_roles.jpg"
 
 
 
@@ -2369,7 +2369,11 @@ async def valuation_faq_question_selected(callback: CallbackQuery):
         return
 
     if question_id == "roles_mgmt":
-        await callback.message.answer(f"Матрица ролей: {VALUATION_ROLES_IMAGE_URL}", disable_web_page_preview=False)
+        if VALUATION_ROLES_IMAGE_PATH.exists():
+            await callback.message.answer_photo(photo=FSInputFile(VALUATION_ROLES_IMAGE_PATH))
+        else:
+            logger.warning("Valuation roles image is missing: %s", VALUATION_ROLES_IMAGE_PATH)
+            await callback.message.answer("Матрица ролей временно недоступна — файл с изображением не найден.")
 
     await callback.message.answer(text, parse_mode="HTML")
     await callback.message.answer("Вы можете выбрать другой вопрос или вернуться к темам.", reply_markup=valuation_faq_topics_keyboard())
