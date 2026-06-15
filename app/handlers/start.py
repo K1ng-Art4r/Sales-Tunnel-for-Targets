@@ -127,7 +127,7 @@ CHAT_ANALYZER_GIFT_TEXT = (
     "получите сводку по всем.\n"
     "Никаких новых сервисов — только ChatGPT (бесплатно) и 15 минут времени."
 )
-CHAT_ANALYZER_PDF_PATH = PROJECT_ROOT / "Анализ_качества_переписки_с_клиентом.pdf"
+CHAT_ANALYZER_PDF_PATH = PROJECT_ROOT / "app" / "assets" / "Анализ_качества_переписки_с_клиентом.pdf"
 
 TOOL_PLACEHOLDER_TEXT = (
     "Инструмент пока в режиме заглушки."
@@ -148,7 +148,7 @@ SIMULATE_MODE_TEXT = (
 SIMULATE_PRO_TEXT = (
     "🎯 Серьёзно рассматриваете внедрение? Загрузите Excel — получите полный бизнес-кейс от нашей команды.\n"
     "📥 Скачать Excel-файл\n"
-    "📤 Заполнили? Загрузить обратно или отправьте это на: success@aivel.ai\n"
+    "📤 Заполнили? Загрузить обратно или отправьте это на: info@aivel.ai\n"
     "После загрузки мы подготовим детальный бизнес-кейс и свяжемся с вами в течение 2 рабочих дней.\n\n"
     "📊 Что внутри Excel-опросника?\n\n"
     "1️⃣ Цифры (Лист 1) — 20 полей, 25-30 минут\n"
@@ -205,7 +205,7 @@ VALUATION_PROFITABILITY_MAP = {
 }
 WAIT_FILE_TEXT = (
     "Ожидаем ваш файл.\n\n"
-    "Вы можете загрузить Excel сюда или нажать «Отправил по почте», если уже отправили на success@aivel.ai."
+    "Вы можете загрузить Excel сюда или нажать «Отправил по почте», если уже отправили на info@aivel.ai."
 )
 THANKS_DEEP_TEXT = "Спасибо! С вами свяжутся в течение 2 рабочих дней."
 THANKS_TOOL_TEXT = "Спасибо, что воспользовались нашим инструментом, надеемся он оказался полезным."
@@ -224,6 +224,11 @@ DEFAULT_EXPRESS_SALARY = 120000
 DEFAULT_VALUATION_REVENUE_MLN = 30.0
 DEFAULT_VALUATION_SHARE_OPTION = "60_80"
 DEFAULT_VALUATION_PROFITABILITY_OPTION = "unknown"
+DEFAULT_VALUATION_CLIENTS_TOTAL = 250
+DEFAULT_VALUATION_CLIENTS_KEY = 15
+DEFAULT_VALUATION_HEADCOUNT = 15
+DEFAULT_VALUATION_Q6_OPTION = "40_60"
+DEFAULT_VALUATION_Q8_OPTION = "partial"
 VALUATION_RUB_INPUT_THRESHOLD = 1000
 VALUATION_MULTIPLE = 2.5
 VALUATION_IDLE_TIMEOUT_SECONDS = 60
@@ -246,7 +251,7 @@ VALUATION_EXCEL_TEXT = (
     "Загрузите Excel — получите полный бизнес-кейс от нашей команды."
 )
 VALUATION_MODELS_IMAGE_URL = "https://disk.yandex.com/i/SXmB484oG0gfzg"
-VALUATION_ROLES_IMAGE_URL = "https://disk.yandex.com/i/bxE4nm-98rX3aA"
+VALUATION_ROLES_IMAGE_PATH = PROJECT_ROOT / "app" / "assets" / "picture_matrics_of_roles.jpg"
 
 
 
@@ -949,6 +954,78 @@ async def tool_nav_skip(message: Message, state: FSMContext):
             "Напишите одно число (например: 50, 250, 500).",
             parse_mode="HTML",
         )
+        return
+    if current_state == ValuationFlow.precise_clients_total.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await state.update_data(valuation_c1=DEFAULT_VALUATION_CLIENTS_TOTAL)
+        await save_funnel_fields(user_id, valuation_c1=DEFAULT_VALUATION_CLIENTS_TOTAL)
+        await state.set_state(ValuationFlow.precise_clients_key)
+        await message.answer(
+            f"Приняли значение из примера: {DEFAULT_VALUATION_CLIENTS_TOTAL}.\n\n"
+            "<b>Q5: Сколько клиентов приносят основную часть вашей выручки от базовой бухгалтерии?</b>\n\n"
+            "Подсказка: обычно 10–20% клиентов дают 80% дохода.\n"
+            "Напишите одно число (например: 5, 15, 40).",
+            parse_mode="HTML",
+        )
+        return
+    if current_state == ValuationFlow.precise_clients_key.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        data = await state.get_data()
+        total_clients = int(data.get("valuation_c1", DEFAULT_VALUATION_CLIENTS_TOTAL))
+        key_clients = min(DEFAULT_VALUATION_CLIENTS_KEY, total_clients)
+        await state.update_data(valuation_c2=key_clients)
+        await save_funnel_fields(user_id, valuation_c2=key_clients)
+        await state.set_state(ValuationFlow.precise_top5_share)
+        await message.answer(
+            f"Приняли значение из примера: {key_clients}.\n\n"
+            "<b>Q6: Какую долю выручки от базовой бухгалтерии приносят ваши 5 крупнейших клиентов?</b>",
+            parse_mode="HTML",
+            reply_markup=valuation_q6_share_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.precise_top5_share.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await state.update_data(valuation_c3=DEFAULT_VALUATION_Q6_OPTION)
+        await save_funnel_fields(user_id, valuation_c3=DEFAULT_VALUATION_Q6_OPTION)
+        await state.set_state(ValuationFlow.precise_headcount)
+        await message.answer(
+            "Приняли средний вариант: 40–60%.\n\n"
+            "<b>Q7: Сколько бухгалтеров занято на базовых операциях?</b>\n\n"
+            "Первичка, сверки, банк-клиент — не считая руководителей направлений и аудиторов.\n"
+            "Напишите одно число (например: 5, 15, 40).",
+            parse_mode="HTML",
+        )
+        return
+    if current_state == ValuationFlow.precise_headcount.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await state.update_data(valuation_h=DEFAULT_VALUATION_HEADCOUNT)
+        await save_funnel_fields(user_id, valuation_h=DEFAULT_VALUATION_HEADCOUNT)
+        await state.set_state(ValuationFlow.precise_automation_level)
+        await message.answer(
+            f"Приняли значение из примера: {DEFAULT_VALUATION_HEADCOUNT}.\n\n"
+            "<b>Q8: Используете ли вы инструменты автоматизации в бухгалтерии?</b>\n\n"
+            "Выберите вариант ответа:",
+            parse_mode="HTML",
+            reply_markup=valuation_q8_automation_level_keyboard(),
+        )
+        return
+    if current_state == ValuationFlow.precise_automation_level.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await state.update_data(valuation_q8_level=DEFAULT_VALUATION_Q8_OPTION)
+        await save_funnel_fields(user_id, valuation_q8_level=DEFAULT_VALUATION_Q8_OPTION)
+        await message.answer("Приняли средний вариант: частичная автоматизация.")
+        await valuation_send_precise_result(message, state)
+        return
+    if current_state == ValuationFlow.precise_automation_tools.state:
+        user_id = await get_db_user_id(message)
+        cancel_valuation_idle_task(user_id)
+        await message.answer("Пропустили список конкретных решений.")
+        await valuation_send_precise_result(message, state)
         return
     if current_state == SimulateFlow.precise_advisory.state:
         await state.update_data(plus3_advisory="10_20")
@@ -2159,19 +2236,29 @@ async def valuation_idle_models(callback: CallbackQuery, state: FSMContext):
     valuation_mln = round(profit_mln * VALUATION_MULTIPLE, 1)
     investor_25_mln = round(valuation_mln * 0.25, 1)
 
-    await callback.message.answer_photo(
-        photo=VALUATION_MODELS_IMAGE_URL,
-        caption=(
-            "<b>🚀 Модели</b>\n"
-            "Мы предлагаем 4 сценария — от «ничего не делать» до «построить группу компаний». "
-            "Каждый влияет на вашу прибыль по-разному.\n\n"
-            f"Сценарий компании с прибылью {format_mln(profit_mln)} млн ₽\n"
-            f"Оценка компании: {format_mln(profit_mln)} × {VALUATION_MULTIPLE:.1f} = {format_mln(valuation_mln)} млн ₽\n"
-            f"Стоимость 25% для инвестора: {format_mln(investor_25_mln)} млн ₽"
-        ),
-        parse_mode="HTML",
+    text = (
+        "<b>🚀 Модели</b>\n"
+        "Мы предлагаем 4 сценария — от «ничего не делать» до «построить группу компаний». "
+        "Каждый влияет на вашу прибыль по-разному.\n\n"
+        f"Сценарий компании с прибылью {format_mln(profit_mln)} млн ₽\n"
+        f"Оценка компании: {format_mln(profit_mln)} × {VALUATION_MULTIPLE:.1f} = {format_mln(valuation_mln)} млн ₽\n"
+        f"Стоимость 25% для инвестора: {format_mln(investor_25_mln)} млн ₽"
     )
+    try:
+        await callback.message.answer_photo(
+            photo=VALUATION_MODELS_IMAGE_URL,
+            caption=text,
+            parse_mode="HTML",
+        )
+    except TelegramBadRequest as exc:
+        logger.warning("Failed to send valuation models image, falling back to text: %s", exc)
+        await callback.message.answer(
+            f"{text}\n\nСхема моделей: {VALUATION_MODELS_IMAGE_URL}",
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
     await callback.answer()
+
 
 @router.callback_query(ValuationFlow.precise_post_result, F.data == "valuation:idle:faq")
 async def valuation_idle_faq(callback: CallbackQuery):
@@ -2282,9 +2369,22 @@ async def valuation_faq_question_selected(callback: CallbackQuery):
         return
 
     if question_id == "roles_mgmt":
-        await callback.message.answer(f"Матрица ролей: {VALUATION_ROLES_IMAGE_URL}", disable_web_page_preview=False)
+        if VALUATION_ROLES_IMAGE_PATH.exists():
+            await callback.message.answer_photo(
+                photo=FSInputFile(VALUATION_ROLES_IMAGE_PATH),
+                caption=text,
+                parse_mode="HTML",
+            )
+        else:
+            logger.warning("Valuation roles image is missing: %s", VALUATION_ROLES_IMAGE_PATH)
+            await callback.message.answer(
+                "Матрица ролей временно недоступна — файл с изображением не найден.\n\n"
+                f"{text}",
+                parse_mode="HTML",
+            )
+    else:
+        await callback.message.answer(text, parse_mode="HTML")
 
-    await callback.message.answer(text, parse_mode="HTML")
     await callback.message.answer("Вы можете выбрать другой вопрос или вернуться к темам.", reply_markup=valuation_faq_topics_keyboard())
     await callback.answer()
 
