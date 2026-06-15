@@ -158,3 +158,75 @@ python3 main.py
 
 Если у вас сейчас выбрана `main`, то в прод будет запускаться код именно из `main`.
 Если выбрана другая ветка (например, `develop`), деплоиться будет она.
+
+## Docker
+
+Проект можно собрать и запустить как Docker-контейнер. Образ запускает Telegram-бота командой `python main.py`.
+
+### Сборка локально
+
+```bash
+docker build -t sales-tunnel-bot .
+```
+
+### Запуск локально
+
+Перед запуском подготовьте `.env` с обязательными переменными окружения (`BOT_TOKEN`, `DATABASE_URL` и остальные интеграции при необходимости), затем выполните:
+
+```bash
+docker run --rm --env-file .env sales-tunnel-bot
+```
+
+Если PostgreSQL запущен на хост-машине, укажите в `DATABASE_URL` адрес, доступный из контейнера. Например, для Docker Desktop часто используют `host.docker.internal` вместо `localhost`.
+
+## Перенос рабочей версии из GitHub в Azure DevOps
+
+Ниже пример последовательности для публикации текущей рабочей версии в ветку Azure DevOps `Deploy_from_github`.
+
+1. Убедиться, что локальная ветка содержит актуальную рабочую версию из GitHub:
+
+```bash
+git checkout main
+git pull origin main
+```
+
+2. Добавить Azure DevOps как дополнительный remote. URL возьмите в Azure DevOps: `Repos` → `Clone` → `HTTPS`.
+
+```bash
+git remote add azure https://dev.azure.com/<organization>/<project>/_git/<repository>
+```
+
+Если remote `azure` уже есть, обновите URL:
+
+```bash
+git remote set-url azure https://dev.azure.com/<organization>/<project>/_git/<repository>
+```
+
+3. Проверить remotes:
+
+```bash
+git remote -v
+```
+
+4. Отправить текущую GitHub-версию в ветку Azure DevOps `Deploy_from_github`:
+
+```bash
+git push azure main:Deploy_from_github
+```
+
+Если локальная рабочая ветка называется не `main`, замените `main` на нужное имя:
+
+```bash
+git push azure <local_branch>:Deploy_from_github
+```
+
+5. Если ветка `Deploy_from_github` в Azure DevOps защищена или уже содержит другую историю, сначала создайте pull request в Azure DevOps из вашей ветки в `Deploy_from_github`. Не используйте force push без согласования с командой.
+
+6. В Azure DevOps настройте переменные окружения/секреты для контейнера или pipeline: `BOT_TOKEN`, `DATABASE_URL`, параметры Google Sheets, Calendly и остальные значения из раздела установки.
+
+7. Для проверки Docker-сборки в Azure Pipeline можно использовать базовые команды:
+
+```bash
+docker build -t sales-tunnel-bot .
+docker run --rm --env-file .env sales-tunnel-bot
+```
