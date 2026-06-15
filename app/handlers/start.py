@@ -2370,12 +2370,21 @@ async def valuation_faq_question_selected(callback: CallbackQuery):
 
     if question_id == "roles_mgmt":
         if VALUATION_ROLES_IMAGE_PATH.exists():
-            await callback.message.answer_photo(photo=FSInputFile(VALUATION_ROLES_IMAGE_PATH))
+            await callback.message.answer_photo(
+                photo=FSInputFile(VALUATION_ROLES_IMAGE_PATH),
+                caption=text,
+                parse_mode="HTML",
+            )
         else:
             logger.warning("Valuation roles image is missing: %s", VALUATION_ROLES_IMAGE_PATH)
-            await callback.message.answer("Матрица ролей временно недоступна — файл с изображением не найден.")
+            await callback.message.answer(
+                "Матрица ролей временно недоступна — файл с изображением не найден.\n\n"
+                f"{text}",
+                parse_mode="HTML",
+            )
+    else:
+        await callback.message.answer(text, parse_mode="HTML")
 
-    await callback.message.answer(text, parse_mode="HTML")
     await callback.message.answer("Вы можете выбрать другой вопрос или вернуться к темам.", reply_markup=valuation_faq_topics_keyboard())
     await callback.answer()
 
