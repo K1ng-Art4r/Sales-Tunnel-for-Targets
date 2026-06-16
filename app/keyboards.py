@@ -192,8 +192,8 @@ def simulate_growth_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Нет", callback_data="simulate:post:growth:none")],
-            [InlineKeyboardButton(text="Да, обычный рост +5–20%", callback_data="simulate:post:growth:normal")],
-            [InlineKeyboardButton(text="Да, быстрый рост >20%", callback_data="simulate:post:growth:fast")],
+            [InlineKeyboardButton(text="Да, умеренный рост 5–20%", callback_data="simulate:post:growth:normal")],
+            [InlineKeyboardButton(text="Да, быстрый рост более 20%", callback_data="simulate:post:growth:fast")],
         ]
     )
 
@@ -303,7 +303,7 @@ def valuation_mode_keyboard() -> InlineKeyboardMarkup:
 def valuation_intro_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Поехали⚡", callback_data="valuation:express:start")],
+            [InlineKeyboardButton(text="Начать оценку", callback_data="valuation:express:start")],
             [InlineKeyboardButton(text="↩️ Назад", callback_data="valuation:back")],
         ]
     )
@@ -312,19 +312,19 @@ def valuation_intro_keyboard() -> InlineKeyboardMarkup:
 def valuation_share_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="<40%", callback_data="valuation:share:lt40")],
-            [InlineKeyboardButton(text="40-60%", callback_data="valuation:share:40_60")],
-            [InlineKeyboardButton(text="60-80%", callback_data="valuation:share:60_80")],
-            [InlineKeyboardButton(text=">80%", callback_data="valuation:share:gt80")],
+            [InlineKeyboardButton(text="Менее 40%", callback_data="valuation:share:lt40")],
+            [InlineKeyboardButton(text="40–60%", callback_data="valuation:share:40_60")],
+            [InlineKeyboardButton(text="60–80%", callback_data="valuation:share:60_80")],
+            [InlineKeyboardButton(text="Более 80%", callback_data="valuation:share:gt80")],
             [
                 InlineKeyboardButton(
-                    text="Я не знаю, но это основная часть нашего бизнеса",
+                    text="Точную долю не знаем, но это основное направление",
                     callback_data="valuation:share:unknown_main",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="Я не знаю, но это незначительная часть нашего бизнеса",
+                    text="Точную долю не знаем, но это небольшая часть выручки",
                     callback_data="valuation:share:unknown_small",
                 )
             ],
@@ -378,9 +378,9 @@ def valuation_q6_share_keyboard() -> InlineKeyboardMarkup:
 def valuation_q8_automation_level_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Нет — работаем в 1С и Excel", callback_data="valuation:q8:none")],
-            [InlineKeyboardButton(text="Частично — макросы, автовыгрузки, таск-менеджер", callback_data="valuation:q8:partial")],
-            [InlineKeyboardButton(text="Да — RPA, боты или AI-решения", callback_data="valuation:q8:advanced")],
+            [InlineKeyboardButton(text="Не используем, работаем в 1С и Excel", callback_data="valuation:q8:none")],
+            [InlineKeyboardButton(text="Частично используем автоматизацию (макросы, автовыгрузки, таск-менеджер)", callback_data="valuation:q8:partial")],
+            [InlineKeyboardButton(text="Активно используем RPA, ботов или AI-решения", callback_data="valuation:q8:advanced")],
         ]
     )
 

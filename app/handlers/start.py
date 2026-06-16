@@ -146,28 +146,23 @@ SIMULATE_MODE_TEXT = (
     "точную оценку"
 )
 SIMULATE_PRO_TEXT = (
-    "🎯 Серьёзно рассматриваете внедрение? Загрузите Excel — получите полный бизнес-кейс от нашей команды.\n"
-    "📥 Скачать Excel-файл\n"
-    "📤 Заполнили? Загрузить обратно или отправьте это на: info@aivel.ai\n"
-    "После загрузки мы подготовим детальный бизнес-кейс и свяжемся с вами в течение 2 рабочих дней.\n\n"
-    "📊 Что внутри Excel-опросника?\n\n"
-    "1️⃣ Цифры (Лист 1) — 20 полей, 25-30 минут\n"
-    "• Выручка и прибыль за 3 года\n"
-    "• Структура клиентов и средний чек\n"
-    "• Отток и концентрация выручки\n"
-    "• Маржинальность и повторяемость\n\n"
-    "2️⃣ Компания и рынок (Лист 2) — 15 полей, 10-15 минут\n"
-    "• Профиль компании и юрструктура\n"
-    "• Рыночная позиция и конкуренты\n"
-    "• Структура услуг и допродажи\n"
-    "• Технологии и автоматизация\n\n"
-    "3️⃣ Основатели (Лист 3) — 10 полей, 5-10 минут\n"
-    "• Состав собственников\n"
-    "• Роль в операционке\n"
-    "• Предпочтения по сделке\n"
-    "• Интерес к M&A\n\n"
-    "Итого: 45 полей, 30-40 минут\n"
-    "Можно заполнять частями, сохранять, возвращаться. Все поля с подсказками и примерами."
+    "<b>Excel-опросник для подробной оценки</b>\n\n"
+    "Скачайте файл, заполните и загрузите обратно в бот или отправьте на info@aivel.ai.\n\n"
+    "После получения данных мы подготовим бизнес-кейс и свяжемся с вами в течение 2 рабочих дней.\n\n"
+    "Что внутри:\n\n"
+    "1. Финансы\n"
+    "• выручка и прибыль;\n"
+    "• структура клиентов;\n"
+    "• средний чек;\n"
+    "• маржинальность.\n\n"
+    "2. Компания и процессы\n"
+    "• услуги и команда;\n"
+    "• технологии и автоматизация;\n"
+    "• текущие операционные ограничения.\n\n"
+    "3. Собственники и планы\n"
+    "• роль собственника;\n"
+    "• интерес к росту, M&A или партнёрству.\n\n"
+    "Всего около 45 полей. Обычно заполнение занимает 30–40 минут."
 )
 SIMULATE_PRO_MISSING_TEXT = (
     "Не удалось найти Excel-файл в проекте.\n"
@@ -205,7 +200,7 @@ VALUATION_PROFITABILITY_MAP = {
 }
 WAIT_FILE_TEXT = (
     "Ожидаем ваш файл.\n\n"
-    "Вы можете загрузить Excel сюда или нажать «Отправил по почте», если уже отправили на info@aivel.ai."
+    "Загрузите Excel сюда или нажмите «Отправил по почте», если уже отправили файл на info@aivel.ai."
 )
 THANKS_DEEP_TEXT = "Спасибо! С вами свяжутся в течение 2 рабочих дней."
 THANKS_TOOL_TEXT = "Спасибо, что воспользовались нашим инструментом, надеемся он оказался полезным."
@@ -246,9 +241,13 @@ VALUATION_IDLE_TASKS: dict[int, asyncio.Task] = {}
 SIMULATE_START_LOCKS: dict[int, datetime] = {}
 SIMULATE_START_LOCK_SECONDS = 5
 VALUATION_EXCEL_TEXT = (
-    "🎯 Если вы серьёзно рассматриваете партнёрство с нашим участием в технологиях и финансировании, "
-    "давайте заполним наш подробный Excel-инструмент для оценки сделки.\n"
-    "Загрузите Excel — получите полный бизнес-кейс от нашей команды."
+    "<b>Excel-опросник для подробной оценки</b>\n\n"
+    "Скачайте файл, заполните и загрузите обратно в бот или отправьте на info@aivel.ai.\n\n"
+    "После получения данных мы подготовим бизнес-кейс и свяжемся с вами в течение 2 рабочих дней."
+)
+VALUATION_WAIT_FILE_TEXT = (
+    "Ожидаем ваш файл.\n\n"
+    "Загрузите Excel сюда или нажмите «Отправил по почте», если уже отправили файл на info@aivel.ai."
 )
 VALUATION_MODELS_IMAGE_URL = "https://disk.yandex.com/i/SXmB484oG0gfzg"
 
@@ -671,12 +670,14 @@ def format_rub(value: float) -> str:
 
 async def ask_precise_standardization_question(message: Message):
     await message.answer(
-        "5️⃣ Насколько стандартизированы ваши процессы?\n"
-        "“При высокой стандартизации вы достигнете результатов на 30% быстрее”\n\n"
-        "Выберите вариант ответа:\n"
-        "• Высокая стандартизация: есть регламенты, чек-листы, единая методология для всех бухгалтеров\n"
-        "• Средняя стандартизация: базовые стандарты есть, но много ручной работы и решений “на месте”\n"
-        "• Низкая стандартизация: каждый бухгалтер работает по-своему, процессы не описаны\n",
+        "<b>Подробная оценка</b>\n\n"
+        "Насколько стандартизированы ваши процессы?\n\n"
+        "Чем понятнее регламенты и повторяемость операций, тем быстрее можно внедрить "
+        "ИИ и получить эффект.\n\n"
+        "Выберите вариант:\n\n"
+        "• высокая стандартизация — есть регламенты, чек-листы и единая методология;\n"
+        "• средняя стандартизация — базовые правила есть, но много ручных решений;\n"
+        "• низкая стандартизация — каждый бухгалтер работает по-своему.",
         parse_mode="HTML",
         reply_markup=simulate_plus3_standardization_keyboard(),
     )
@@ -778,9 +779,11 @@ async def send_valuation_mode_menu(target: Message | CallbackQuery, state: FSMCo
     await state.set_state(ValuationFlow.mode_select)
 
     text = (
-        "Ваша фирма 2.0 — это не продажа бизнеса. Это апгрейд.\n"
-        "Мы покажем, как партнёрство с AIVEL может изменить экономику вашей фирмы: "
-        "больше прибыли, автоматизация рутины и капитал для роста.\n"
+        "Добро пожаловать в Aivel.\n\n"
+        "Формат «Фирма 2.0» — это не продажа бизнеса, а переход на новую "
+        "модель работы. Мы показываем, как партнёрство с Aivel влияет на "
+        "экономику бухгалтерской компании: повышает прибыль, снижает долю "
+        "рутины и открывает доступ к капиталу для роста.\n\n"
         "Выберите, с чего начать:"
     )
 
@@ -843,7 +846,7 @@ def format_slot_label(slot_dt: datetime) -> str:
     return slot_dt.strftime("%H:%M")
 
 
-async def send_excel_and_wait_for_user(callback: CallbackQuery, state: FSMContext):
+async def send_excel_and_wait_for_user(callback: CallbackQuery, state: FSMContext, wait_text: str = WAIT_FILE_TEXT):
     excel_path = find_excel_template()
     if excel_path is None:
         await callback.message.answer(SIMULATE_PRO_MISSING_TEXT)
@@ -853,13 +856,13 @@ async def send_excel_and_wait_for_user(callback: CallbackQuery, state: FSMContex
     await callback.message.answer(SIMULATE_PRO_TEXT)
     await callback.message.answer_document(
         document=FSInputFile(excel_path),
-        caption="📥 Excel-опросник для профессиональной оценки",
+        caption="Excel-опросник для подробной оценки",
     )
     user_id = await get_db_user_id(callback)
     await save_funnel_fields(user_id, file_downloaded=True)
     await add_event(user_id, "simulate_pro_excel_sent", excel_path.name)
     await state.set_state(SimulateFlow.precise_wait_excel)
-    await callback.message.answer(WAIT_FILE_TEXT, reply_markup=simulate_deep_wait_keyboard())
+    await callback.message.answer(wait_text, reply_markup=simulate_deep_wait_keyboard())
     await callback.answer()
 
 
@@ -975,7 +978,9 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await message.answer(
             f"Приняли значение из примера: {format_mln(DEFAULT_VALUATION_REVENUE_MLN)} млн руб.\n\n"
             "<b>Q2: Какая доля выручки приходится на базовый бухгалтерский аутсорсинг? (%)</b>\n\n"
-            "Это обработка первичных документов, сверки и банк-клиент. Без учёта аудита, консалтинга и прочих услуг.",
+            "Укажите, какая часть выручки приходится на обработку первичных документов, "
+            "сверки и работу в банк-клиенте — без учёта аудита, консалтинга и прочих "
+            "дополнительных услуг.",
             parse_mode="HTML",
             reply_markup=valuation_share_keyboard(),
         )
@@ -989,8 +994,8 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(ValuationFlow.express_profitability)
         await message.answer(
             "Приняли среднее значение: 60–80%.\n\n"
-            "<b>Q3: Какая коммерческая маржа (прибыльность) на базовых бухгалтерских услугах (P)?</b>\n\n"
-            "Это прибыль от базовой бухгалтерии ÷ выручка от базовой бухгалтерии.",
+            "<b>Какая маржа у базовых бухгалтерских услуг?</b>\n\n"
+            "Маржа рассчитывается как отношение прибыли от базовой бухгалтерии к выручке по этим услугам.",
             parse_mode="HTML",
             reply_markup=valuation_profitability_keyboard(),
         )
@@ -1028,11 +1033,14 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(ValuationFlow.express_continue)
         await message.answer(
             "Приняли среднее значение: я не знаю / 25%.\n\n"
-            "Оценка стоимости вашей фирмы\n"
-            f"{profit_mln_rounded:.1f} × {VALUATION_MULTIPLE:.1f} = {valuation_mln:.1f} млн руб.\n"
-            "— стандарт для бухгалтерских практик\n\n"
-            "Есть несколько важных нюансов, которые нужно уточнить. "
-            "Вы согласны ответить на ещё несколько вопросов, чтобы быть точнее и учесть важные моменты?",
+            "<b>Оценка стоимости вашей фирмы</b>\n\n"
+            f"По предварительным данным ориентировочная стоимость бизнеса составляет {valuation_mln:.1f} млн ₽. "
+            f"Расчёт сделан исходя из годовой чистой прибыли {profit_mln_rounded:.1f} млн ₽ и мультипликатора "
+            f"{VALUATION_MULTIPLE:.1f}, который часто используется для бухгалтерских компаний с устойчивой клиентской базой.\n\n"
+            "Оценка является ориентировочной. На фактическую стоимость влияют структура клиентского портфеля, "
+            "доля долгосрочных договоров, уровень списаний и долговая нагрузка. Чтобы учесть эти факторы и "
+            "получить более точный результат, мы можем задать ещё несколько уточняющих вопросов.\n\n"
+            "Готовы пройти более детальную оценку и ответить на несколько дополнительных вопросов?",
             reply_markup=valuation_continue_keyboard(),
         )
         return
@@ -1042,12 +1050,11 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(ValuationFlow.precise_clients_total)
         await message.answer(
             "Приняли среднее действие: продолжить уточнение.\n\n"
-            "Отлично! Теперь несколько вопросов о вашем клиентском портфеле и команде. "
-            "Это поможет нам понять, как ИИ-автоматизация и инвестиции лучше всего впишутся именно в вашу фирму.\n\n"
-            "Ещё 5 вопросов — займёт пару минут 👇\n\n"
-            "<b>Q4: Сколько у вас активных клиентов?</b>\n\n"
-            "Считайте только тех, кто получает услуги по базовой бухгалтерии. "
-            "Напишите одно число (например: 50, 250, 500).",
+            "Давайте уточним несколько параметров по клиентскому портфелю и команде. "
+            "Это поможет понять, как ИИ-автоматизация и возможные инвестиции могут быть применены именно в вашей фирме. "
+            "Всего будет ещё несколько коротких вопросов.\n\n"
+            "<b>Сколько у вас активных клиентов?</b>\n\n"
+            "Укажите количество клиентов по базовой бухгалтерии. Достаточно одного числа, например: 50, 250, 500.",
             parse_mode="HTML",
         )
         return
@@ -1059,9 +1066,8 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(ValuationFlow.precise_clients_key)
         await message.answer(
             f"Приняли значение из примера: {DEFAULT_VALUATION_CLIENTS_TOTAL}.\n\n"
-            "<b>Q5: Сколько клиентов приносят основную часть вашей выручки от базовой бухгалтерии?</b>\n\n"
-            "Подсказка: обычно 10–20% клиентов дают 80% дохода.\n"
-            "Напишите одно число (например: 5, 15, 40).",
+            "<b>Сколько клиентов формируют основную часть выручки по базовой бухгалтерии?</b>\n"
+            "Обычно 10–20% клиентов дают до 80% выручки. Укажите ориентировочное количество таких клиентов одним числом, например: 5, 15, 40.",
             parse_mode="HTML",
         )
         return
@@ -1076,7 +1082,7 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(ValuationFlow.precise_top5_share)
         await message.answer(
             f"Приняли значение из примера: {key_clients}.\n\n"
-            "<b>Q6: Какую долю выручки от базовой бухгалтерии приносят ваши 5 крупнейших клиентов?</b>",
+            "<b>Какую долю выручки по базовой бухгалтерии обеспечивают ваши 5 крупнейших клиентов?</b>",
             parse_mode="HTML",
             reply_markup=valuation_q6_share_keyboard(),
         )
@@ -1089,9 +1095,9 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(ValuationFlow.precise_headcount)
         await message.answer(
             "Приняли средний вариант: 40–60%.\n\n"
-            "<b>Q7: Сколько бухгалтеров занято на базовых операциях?</b>\n\n"
-            "Первичка, сверки, банк-клиент — не считая руководителей направлений и аудиторов.\n"
-            "Напишите одно число (например: 5, 15, 40).",
+            "<b>Сколько бухгалтеров занято на базовых операциях?</b>\n\n"
+            "Учитывайте сотрудников, которые ведут первичную документацию, сверки и работу в банк-клиенте, "
+            "без руководителей направлений и аудиторов. Укажите количество одним числом, например: 5, 15, 40.",
             parse_mode="HTML",
         )
         return
@@ -1103,8 +1109,8 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(ValuationFlow.precise_automation_level)
         await message.answer(
             f"Приняли значение из примера: {DEFAULT_VALUATION_HEADCOUNT}.\n\n"
-            "<b>Q8: Используете ли вы инструменты автоматизации в бухгалтерии?</b>\n\n"
-            "Выберите вариант ответа:",
+            "<b>Используете ли вы инструменты автоматизации в бухгалтерии?</b>\n\n"
+            "Выберите подходящий вариант.",
             parse_mode="HTML",
             reply_markup=valuation_q8_automation_level_keyboard(),
         )
@@ -1131,8 +1137,9 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(SimulateFlow.precise_clients)
         await message.answer(
             "Приняли среднее значение: 10–20%.\n\n"
-            "4️⃣ Количество активных клиентов?\n\n"
-            "Напишите свой ответ сообщением.\n"
+            "Сколько у вас активных клиентов?\n\n"
+            "Под клиентом понимаем юрлицо, которое получает регулярные бухгалтерские услуги.\n\n"
+            "Напишите число.\n\n"
             "Например: 120",
             parse_mode="HTML",
         )
@@ -1145,7 +1152,11 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(SimulateFlow.precise_automation)
         await message.answer(
             "Приняли среднее значение: средняя стандартизация.\n\n"
-            "6️⃣ Используете ли вы сейчас какие-то инструменты автоматизации?\n\n",
+            "Используете ли вы сейчас автоматизацию?\n\n"
+            "Выберите вариант:\n\n"
+            "• нет — в основном 1С и Excel;\n"
+            "• частично — макросы, выгрузки, шаблоны, CRM или система задач;\n"
+            "• да — RPA, боты или ИИ-решения.",
             parse_mode="HTML",
             reply_markup=simulate_plus3_automation_keyboard(),
         )
@@ -1171,7 +1182,8 @@ async def tool_nav_skip(message: Message, state: FSMContext):
             await save_funnel_fields(int(user_id), active_clients_count=120)
         await state.set_state(SimulateFlow.precise_contacts)
         await message.answer(
-            "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
+            "Оставьте контакты, чтобы мы могли отправить подробную оценку и при необходимости уточнить данные.\n\n"
+            "Понадобятся имя, email, телефон, компания и сайт.",
             parse_mode="HTML",
             reply_markup=simulate_contacts_choice_keyboard(),
         )
@@ -1198,8 +1210,8 @@ async def tool_nav_skip(message: Message, state: FSMContext):
             await save_funnel_fields(int(user_id), growth_band="normal")
         await state.set_state(SimulateFlow.precise_mna)
         await message.answer(
-            "Приняли среднее значение: обычный рост +5–20%.\n\n"
-            "Рассматриваете ли вы M&A / привлечение инвестиций?",
+            "Приняли среднее значение: умеренный рост 5–20%.\n\n"
+            "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.\n\nВыберите вариант:\n\n• да;\n• нет.",
             reply_markup=simulate_mna_keyboard(),
         )
         return
@@ -1211,7 +1223,7 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(SimulateFlow.precise_wait_excel)
         await message.answer(
             "Приняли среднее значение: нет.\n\n"
-            "🎯 Серьёзно рассматриваете внедрение? Загрузите Excel — получите полный бизнес-кейс от нашей команды.",
+            "Хотите получить более точный бизнес-кейс?\n\nЗаполните Excel-опросник — мы подготовим подробный расчёт эффекта от внедрения ИИ по вашим данным.",
             reply_markup=simulate_deep_assessment_keyboard(),
         )
         return
@@ -1259,7 +1271,8 @@ async def tool_nav_back(message: Message, state: FSMContext):
     if current_state == SimulateFlow.precise_contact_name.state:
         await state.set_state(SimulateFlow.precise_contacts)
         await message.answer(
-            "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
+            "Оставьте контакты, чтобы мы могли отправить подробную оценку и при необходимости уточнить данные.\n\n"
+            "Понадобятся имя, email, телефон, компания и сайт.",
             parse_mode="HTML",
             reply_markup=simulate_contacts_choice_keyboard(),
         )
@@ -1270,20 +1283,21 @@ async def tool_nav_back(message: Message, state: FSMContext):
         return
     if current_state == SimulateFlow.precise_contact_phone.state:
         await state.set_state(SimulateFlow.precise_contact_email)
-        await message.answer("Ваш email?")
+        await message.answer("Укажите email:")
         return
     if current_state == SimulateFlow.precise_contact_company.state:
         await state.set_state(SimulateFlow.precise_contact_phone)
-        await message.answer("Ваш телефон?")
+        await message.answer("Укажите номер телефона:")
         return
     if current_state == SimulateFlow.precise_contact_website.state:
         await state.set_state(SimulateFlow.precise_contact_company)
-        await message.answer("Название компании?")
+        await message.answer("Укажите название компании:")
         return
     if current_state == SimulateFlow.precise_standardization.state:
         await state.set_state(SimulateFlow.precise_contacts)
         await message.answer(
-            "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
+            "Оставьте контакты, чтобы мы могли отправить подробную оценку и при необходимости уточнить данные.\n\n"
+            "Понадобятся имя, email, телефон, компания и сайт.",
             parse_mode="HTML",
             reply_markup=simulate_contacts_choice_keyboard(),
         )
@@ -1295,7 +1309,11 @@ async def tool_nav_back(message: Message, state: FSMContext):
     if current_state == SimulateFlow.precise_margin.state:
         await state.set_state(SimulateFlow.precise_automation)
         await message.answer(
-            "6️⃣ Используете ли вы сейчас какие-то инструменты автоматизации?\n\n",
+            "Используете ли вы сейчас автоматизацию?\n\n"
+            "Выберите вариант:\n\n"
+            "• нет — в основном 1С и Excel;\n"
+            "• частично — макросы, выгрузки, шаблоны, CRM или система задач;\n"
+            "• да — RPA, боты или ИИ-решения.",
             parse_mode="HTML",
             reply_markup=simulate_plus3_automation_keyboard(),
         )
@@ -1307,14 +1325,14 @@ async def tool_nav_back(message: Message, state: FSMContext):
     if current_state == SimulateFlow.precise_mna.state:
         await state.set_state(SimulateFlow.precise_growth)
         await message.answer(
-            "Планируете ли вы рост в ближайшие 12-24 месяца?",
+            "Планируете ли вы рост в ближайшие 12–24 месяца?\n\nЭто поможет понять, где будет основной эффект: в снижении затрат или в возможности обслуживать больше клиентов без пропорционального роста команды.\n\nВыберите вариант:\n\n• нет;\n• да, умеренный рост 5–20%;\n• да, быстрый рост более 20%.",
             reply_markup=simulate_growth_keyboard(),
         )
         return
     if current_state == SimulateFlow.precise_wait_excel.state:
         await state.set_state(SimulateFlow.precise_mna)
         await message.answer(
-            "Рассматриваете ли вы M&A / привлечение инвестиций?",
+            "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.\n\nВыберите вариант:\n\n• да;\n• нет.",
             reply_markup=simulate_mna_keyboard(),
         )
         return
@@ -1337,7 +1355,9 @@ async def tool_nav_back(message: Message, state: FSMContext):
         await state.set_state(ValuationFlow.express_share)
         await message.answer(
             "<b>Q2: Какая доля выручки приходится на базовый бухгалтерский аутсорсинг? (%)</b>\n\n"
-            "Это обработка первичных документов, сверки и банк-клиент. Без учёта аудита, консалтинга и прочих услуг.",
+            "Укажите, какая часть выручки приходится на обработку первичных документов, "
+            "сверки и работу в банк-клиенте — без учёта аудита, консалтинга и прочих "
+            "дополнительных услуг.",
             parse_mode="HTML",
             reply_markup=valuation_share_keyboard(),
         )
@@ -1345,8 +1365,8 @@ async def tool_nav_back(message: Message, state: FSMContext):
     if current_state == ValuationFlow.express_continue.state:
         await state.set_state(ValuationFlow.express_profitability)
         await message.answer(
-            "<b>Q3: Какая коммерческая маржа (прибыльность) на базовых бухгалтерских услугах (P)?</b>\n\n"
-            "Это прибыль от базовой бухгалтерии ÷ выручка от базовой бухгалтерии.",
+            "<b>Какая маржа у базовых бухгалтерских услуг?</b>\n\n"
+            "Маржа рассчитывается как отношение прибыли от базовой бухгалтерии к выручке по этим услугам.",
             parse_mode="HTML",
             reply_markup=valuation_profitability_keyboard(),
         )
@@ -1354,27 +1374,29 @@ async def tool_nav_back(message: Message, state: FSMContext):
     if current_state == ValuationFlow.precise_clients_total.state:
         await state.set_state(ValuationFlow.express_continue)
         await message.answer(
-            "Есть несколько важных нюансов, которые нужно уточнить. "
-            "Вы согласны ответить на ещё несколько вопросов, чтобы быть точнее и учесть важные моменты?",
+            "Оценка является ориентировочной. На фактическую стоимость влияют структура клиентского портфеля, "
+            "доля долгосрочных договоров, уровень списаний и долговая нагрузка. Чтобы учесть эти факторы и "
+            "получить более точный результат, мы можем задать ещё несколько уточняющих вопросов.\n\n"
+            "Готовы пройти более детальную оценку и ответить на несколько дополнительных вопросов?",
             reply_markup=valuation_continue_keyboard(),
         )
         return
     if current_state == ValuationFlow.precise_clients_key.state:
         await state.set_state(ValuationFlow.precise_clients_total)
-        await message.answer("<b>Q4: Сколько у вас активных клиентов?</b>", parse_mode="HTML")
+        await message.answer("<b>Сколько у вас активных клиентов?</b>\n\nУкажите количество клиентов по базовой бухгалтерии. Достаточно одного числа, например: 50, 250, 500.", parse_mode="HTML")
         return
     if current_state == ValuationFlow.precise_top5_share.state:
         await state.set_state(ValuationFlow.precise_clients_key)
         await message.answer(
-            "<b>Q5: Сколько клиентов приносят основную часть вашей выручки от базовой бухгалтерии?</b>\n\n"
-            "Напишите одно число (например: 5, 15, 40).",
+            "<b>Сколько клиентов формируют основную часть выручки по базовой бухгалтерии?</b>\n"
+            "Обычно 10–20% клиентов дают до 80% выручки. Укажите ориентировочное количество таких клиентов одним числом, например: 5, 15, 40.",
             parse_mode="HTML",
         )
         return
     if current_state == ValuationFlow.precise_headcount.state:
         await state.set_state(ValuationFlow.precise_top5_share)
         await message.answer(
-            "<b>Q6: Какую долю выручки от базовой бухгалтерии приносят ваши 5 крупнейших клиентов?</b>",
+            "<b>Какую долю выручки по базовой бухгалтерии обеспечивают ваши 5 крупнейших клиентов?</b>",
             parse_mode="HTML",
             reply_markup=valuation_q6_share_keyboard(),
         )
@@ -1382,16 +1404,17 @@ async def tool_nav_back(message: Message, state: FSMContext):
     if current_state == ValuationFlow.precise_automation_level.state:
         await state.set_state(ValuationFlow.precise_headcount)
         await message.answer(
-            "<b>Q7: Сколько бухгалтеров занято на базовых операциях?</b>\n\n"
-            "Напишите одно число (например: 5, 15, 40).",
+            "<b>Сколько бухгалтеров занято на базовых операциях?</b>\n\n"
+            "Учитывайте сотрудников, которые ведут первичную документацию, сверки и работу в банк-клиенте, "
+            "без руководителей направлений и аудиторов. Укажите количество одним числом, например: 5, 15, 40.",
             parse_mode="HTML",
         )
         return
     if current_state == ValuationFlow.precise_automation_tools.state:
         await state.set_state(ValuationFlow.precise_automation_level)
         await message.answer(
-            "<b>Q8: Используете ли вы инструменты автоматизации в бухгалтерии?</b>\n\n"
-            "Выберите вариант ответа:",
+            "<b>Используете ли вы инструменты автоматизации в бухгалтерии?</b>\n\n"
+            "Выберите подходящий вариант.",
             parse_mode="HTML",
             reply_markup=valuation_q8_automation_level_keyboard(),
         )
@@ -1831,13 +1854,17 @@ async def simulate_mode_precise(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(SimulateFlow.precise_advisory)
     await callback.message.answer(
-        "✅ <b>Точная оценка</b>\n\n"
-        "3️⃣ Какой % клиентов требует нестандартных консультаций / advisory работы?\n"
-        "Сложные налоговые кейсы, реструктуризация, M&A-поддержка, специальные отраслевые требования\n\n"
-        "Выберите вариант ответа:\n"
-        "• Менее 10% — почти все клиенты стандартные\n"
-        "• 10-20% — есть несколько сложных клиентов\n"
-        "• >20% — заметная доля advisory\n",
+        "<b>Подробная оценка</b>\n\n"
+        "Какая доля клиентов требует нестандартной работы?\n\n"
+        "Например:\n"
+        "• сложные налоговые вопросы;\n"
+        "• сопровождение сделок;\n"
+        "• реструктуризация;\n"
+        "• отраслевые особенности.\n\n"
+        "Выберите вариант:\n\n"
+        "• менее 10% — почти все клиенты стандартные;\n"
+        "• 10–20% — есть несколько сложных клиентов;\n"
+        "• более 20% — заметная доля нестандартных задач.",
         parse_mode="HTML",
         reply_markup=simulate_plus3_advisory_keyboard(),
     )
@@ -1877,11 +1904,11 @@ async def valuation_mode_express(callback: CallbackQuery, state: FSMContext):
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await callback.message.answer(
-        "⚡ <b>Экспресс-оценка</b>\n\n"
-        "Ответьте на 3 вопроса — и мы мгновенно рассчитаем:\n"
-        "• стоимость вашей фирмы\n"
-        "• сумму, которую вы получите при сделке\n"
-        "• ваш доход за 5 лет с партнёрством и без",
+        "<b>Экспресс-оценка</b>\n"
+        "Ответьте на несколько вопросов, и мы рассчитаем для вас:\n"
+        "• ориентировочную стоимость компании;\n"
+        "• сумму, которую вы можете получить при сделке;\n"
+        "• прогноз дохода на 5 лет с партнёрством Aivel и без него.",
         parse_mode="HTML",
         reply_markup=valuation_intro_keyboard(),
     )
@@ -1916,8 +1943,8 @@ async def valuation_express_start(callback: CallbackQuery, state: FSMContext):
     cancel_valuation_idle_task(user_id)
     await state.set_state(ValuationFlow.express_revenue)
     await callback.message.answer(
-        "<b>Q1: Какая годовая выручка вашей фирмы? (млн руб.)</b>\n\n"
-        "Просто напишите число, например: 30",
+        "<b>Годовая выручка вашей компании (млн ₽)</b>\n"
+        "Укажите ориентировочную сумму, например: 30.",
         parse_mode="HTML",
     )
     await callback.answer()
@@ -1944,8 +1971,10 @@ async def valuation_express_revenue(message: Message, state: FSMContext):
     await save_funnel_fields(user_id, valuation_revenue_mln=revenue)
     await state.set_state(ValuationFlow.express_share)
     await message.answer(
-        "<b>Q2: Какая доля выручки приходится на базовый бухгалтерский аутсорсинг? (%)</b>\n\n"
-        "Это обработка первичных документов, сверки и банк-клиент. Без учёта аудита, консалтинга и прочих услуг.",
+        "<b>Доля выручки от базового бухгалтерского аутсорсинга (%)</b>\n\n"
+        "Укажите, какая часть выручки приходится на обработку первичных документов, "
+        "сверки и работу в банк-клиенте — без учёта аудита, консалтинга и прочих "
+        "дополнительных услуг.",
         parse_mode="HTML",
         reply_markup=valuation_share_keyboard(),
     )
@@ -1981,8 +2010,8 @@ async def valuation_express_share(callback: CallbackQuery, state: FSMContext):
     await save_funnel_fields(user_id, valuation_share_percent=share)
     await state.set_state(ValuationFlow.express_profitability)
     await callback.message.answer(
-        "<b>Q3: Какая коммерческая маржа (прибыльность) на базовых бухгалтерских услугах (P)?</b>\n\n"
-        "Это прибыль от базовой бухгалтерии ÷ выручка от базовой бухгалтерии.",
+        "<b>Какая маржа у базовых бухгалтерских услуг?</b>\n\n"
+        "Маржа рассчитывается как отношение прибыли от базовой бухгалтерии к выручке по этим услугам.",
         parse_mode="HTML",
         reply_markup=valuation_profitability_keyboard(),
     )
@@ -2060,12 +2089,11 @@ async def valuation_continue_yes(callback: CallbackQuery, state: FSMContext):
     cancel_valuation_idle_task(user_id)
     await state.set_state(ValuationFlow.precise_clients_total)
     await callback.message.answer(
-        "Отлично! Теперь несколько вопросов о вашем клиентском портфеле и команде. "
-        "Это поможет нам понять, как ИИ-автоматизация и инвестиции лучше всего впишутся именно в вашу фирму.\n\n"
-        "Ещё 5 вопросов — займёт пару минут 👇\n\n"
-        "<b>Q4: Сколько у вас активных клиентов?</b>\n\n"
-        "Считайте только тех, кто получает услуги по базовой бухгалтерии. "
-        "Напишите одно число (например: 50, 250, 500).",
+        "Давайте уточним несколько параметров по клиентскому портфелю и команде. "
+        "Это поможет понять, как ИИ-автоматизация и возможные инвестиции могут быть применены именно в вашей фирме. "
+        "Всего будет ещё несколько коротких вопросов.\n\n"
+        "<b>Сколько у вас активных клиентов?</b>\n\n"
+        "Укажите количество клиентов по базовой бухгалтерии. Достаточно одного числа, например: 50, 250, 500.",
         parse_mode="HTML",
     )
     await callback.answer()
@@ -2101,9 +2129,8 @@ async def valuation_precise_q4_clients_total(message: Message, state: FSMContext
     await save_funnel_fields(user_id, valuation_c1=value)
     await state.set_state(ValuationFlow.precise_clients_key)
     await message.answer(
-        "<b>Q5: Сколько клиентов приносят основную часть вашей выручки от базовой бухгалтерии?</b>\n\n"
-        "Подсказка: обычно 10–20% клиентов дают 80% дохода.\n"
-        "Напишите одно число (например: 5, 15, 40).",
+        "<b>Сколько клиентов формируют основную часть выручки по базовой бухгалтерии?</b>\n"
+        "Обычно 10–20% клиентов дают до 80% выручки. Укажите ориентировочное количество таких клиентов одним числом, например: 5, 15, 40.",
         parse_mode="HTML",
     )
 
@@ -2130,7 +2157,7 @@ async def valuation_precise_q5_key_clients(message: Message, state: FSMContext):
     await save_funnel_fields(user_id, valuation_c2=key_clients)
     await state.set_state(ValuationFlow.precise_top5_share)
     await message.answer(
-        "<b>Q6: Какую долю выручки от базовой бухгалтерии приносят ваши 5 крупнейших клиентов?</b>",
+        "<b>Какую долю выручки по базовой бухгалтерии обеспечивают ваши 5 крупнейших клиентов?</b>",
         parse_mode="HTML",
         reply_markup=valuation_q6_share_keyboard(),
     )
@@ -2149,9 +2176,9 @@ async def valuation_precise_q6_top5_share(callback: CallbackQuery, state: FSMCon
     await save_funnel_fields(user_id, valuation_c3=option)
     await state.set_state(ValuationFlow.precise_headcount)
     await callback.message.answer(
-        "<b>Q7: Сколько бухгалтеров занято на базовых операциях?</b>\n\n"
-        "Первичка, сверки, банк-клиент — не считая руководителей направлений и аудиторов.\n"
-        "Напишите одно число (например: 5, 15, 40).",
+        "<b>Сколько бухгалтеров занято на базовых операциях?</b>\n\n"
+        "Учитывайте сотрудников, которые ведут первичную документацию, сверки и работу в банк-клиенте, "
+        "без руководителей направлений и аудиторов. Укажите количество одним числом, например: 5, 15, 40.",
         parse_mode="HTML",
     )
     await callback.answer()
@@ -2170,8 +2197,8 @@ async def valuation_precise_q7_headcount(message: Message, state: FSMContext):
     await save_funnel_fields(user_id, valuation_h=headcount)
     await state.set_state(ValuationFlow.precise_automation_level)
     await message.answer(
-        "<b>Q8: Используете ли вы инструменты автоматизации в бухгалтерии?</b>\n\n"
-        "Выберите вариант ответа:",
+        "<b>Используете ли вы инструменты автоматизации в бухгалтерии?</b>\n\n"
+        "Выберите подходящий вариант.",
         parse_mode="HTML",
         reply_markup=valuation_q8_automation_level_keyboard(),
     )
@@ -2274,20 +2301,24 @@ async def valuation_send_precise_result(target: Message | CallbackQuery, state: 
     new_valuation = round(express_valuation * rf_comp, 1)
 
     if rf_comp >= 1.00:
-        emoji, comment = "🟢", (
-            "Ваш клиентский портфель хорошо диверсифицирован — это повышает устойчивость бизнеса и его оценку."
+        comment = (
+            "Клиентский портфель хорошо диверсифицирован — зависимость от отдельных клиентов невысокая, "
+            "что повышает устойчивость бизнеса и поддерживает оценку."
         )
     elif 0.90 <= rf_comp <= 0.99:
-        emoji, comment = "🟡", (
-            "Портфель имеет умеренную концентрацию. После вступления в сеть мы поможем расширить клиентскую базу через маркетинг и M&A."
+        comment = (
+            "Портфель имеет умеренную концентрацию. После присоединения к сети Aivel мы сможем помочь "
+            "расширить клиентскую базу за счёт маркетинга и сделок M&A."
         )
     elif 0.80 <= rf_comp <= 0.89:
-        emoji, comment = "🟠", (
-            "Есть зависимость от крупных клиентов. Одна из первых задач после партнёрства — диверсификация через привлечение новых клиентов и небольшие приобретения."
+        comment = (
+            "Есть заметная зависимость от крупных клиентов. Одной из первоочередных задач после партнёрства "
+            "станет диверсификация выручки через привлечение новых клиентов и точечные приобретения."
         )
     else:
-        emoji, comment = "🔴", (
-            "Высокая зависимость от нескольких клиентов — это главный риск. Мы обсудим план диверсификации на звонке с менеджером."
+        comment = (
+            "Высокая зависимость от нескольких клиентов — ключевой фактор риска. На встрече с менеджером "
+            "мы обсудим план по снижению концентрации и укреплению клиентской базы."
         )
 
     user_id = await get_db_user_id(target)
@@ -2306,10 +2337,10 @@ async def valuation_send_precise_result(target: Message | CallbackQuery, state: 
     loading_message = await message.answer("⏳ Оцениваем вашу фирму...")
     await delete_message_safe(loading_message)
     await message.answer(
-        "Новая оценка вашей фирмы: "
-        f"<b>{format_mln(new_valuation)} млн руб.</b>\n\n"
-        "Результаты анализа клиентского портфеля, на основе ваших ответов мы оценили устойчивость клиентской базы:\n"
-        f"{emoji} <b>RFcomp: {rf_comp:.2f}</b>\n"
+        f"Новая оценка вашей фирмы: <b>{format_mln(new_valuation)} млн ₽</b>\n"
+        "По результатам дополнительного опроса мы скорректировали расчёт и оценили "
+        "устойчивость клиентской базы и структуру выручки. Это позволило уточнить "
+        "ориентировочную стоимость бизнеса.\n\n"
         f"{comment}",
         parse_mode="HTML",
     )
@@ -2324,7 +2355,7 @@ async def valuation_post_excel_download(callback: CallbackQuery, state: FSMConte
 
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
-    await send_excel_and_wait_for_user(callback, state)
+    await send_excel_and_wait_for_user(callback, state, wait_text=VALUATION_WAIT_FILE_TEXT)
 
 
 @router.callback_query(ValuationFlow.precise_post_result, F.data == "valuation:idle:models")
@@ -2520,7 +2551,7 @@ async def simulate_express_salary(message: Message, state: FSMContext):
 async def simulate_precise_clients(message: Message, state: FSMContext):
     clients = parse_positive_int(message.text.strip())
     if clients is None:
-        await message.answer("Введите количество активных клиентов целым числом. Пример: 120")
+        await message.answer("Введите количество активных клиентов целым числом. Например: 120")
         return
 
     await state.update_data(precise_clients=clients)
@@ -2529,7 +2560,8 @@ async def simulate_precise_clients(message: Message, state: FSMContext):
         await save_funnel_fields(int(user_id), active_clients_count=clients)
     await state.set_state(SimulateFlow.precise_contacts)
     await message.answer(
-        "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
+        "Оставьте контакты, чтобы мы могли отправить подробную оценку и при необходимости уточнить данные.\n\n"
+        "Понадобятся имя, email, телефон, компания и сайт.",
         parse_mode="HTML",
         reply_markup=simulate_contacts_choice_keyboard(),
     )
@@ -2564,13 +2596,17 @@ async def simulate_precise_more(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(SimulateFlow.precise_advisory)
     await callback.message.answer(
-        "✅ <b>Точная оценка</b>\n\n"
-        "3️⃣ Какой % клиентов требует нестандартных консультаций / advisory работы?\n"
-        "Сложные налоговые кейсы, реструктуризация, M&A-поддержка, специальные отраслевые требования\n\n"
-        "Выберите вариант ответа:\n"
-        "• Менее 10% — почти все клиенты стандартные\n"
-        "• 10-20% — есть несколько сложных клиентов\n"
-        "• >20% — заметная доля advisory\n",
+        "<b>Подробная оценка</b>\n\n"
+        "Какая доля клиентов требует нестандартной работы?\n\n"
+        "Например:\n"
+        "• сложные налоговые вопросы;\n"
+        "• сопровождение сделок;\n"
+        "• реструктуризация;\n"
+        "• отраслевые особенности.\n\n"
+        "Выберите вариант:\n\n"
+        "• менее 10% — почти все клиенты стандартные;\n"
+        "• 10–20% — есть несколько сложных клиентов;\n"
+        "• более 20% — заметная доля нестандартных задач.",
         parse_mode="HTML",
         reply_markup=simulate_plus3_advisory_keyboard(),
     )
@@ -2591,7 +2627,11 @@ async def simulate_plus3_standardization(callback: CallbackQuery, state: FSMCont
         await save_funnel_fields(int(user_id), standardization_level=normalized)
     await state.set_state(SimulateFlow.precise_automation)
     await callback.message.answer(
-        "6️⃣ Используете ли вы сейчас какие-то инструменты автоматизации?\n\n",
+        "Используете ли вы сейчас автоматизацию?\n\n"
+        "Выберите вариант:\n\n"
+        "• нет — в основном 1С и Excel;\n"
+        "• частично — макросы, выгрузки, шаблоны, CRM или система задач;\n"
+        "• да — RPA, боты или ИИ-решения.",
         parse_mode="HTML",
         reply_markup=simulate_plus3_automation_keyboard(),
     )
@@ -2612,8 +2652,8 @@ async def simulate_plus3_automation(callback: CallbackQuery, state: FSMContext):
         await save_funnel_fields(int(user_id), automation_level=normalized)
     await state.set_state(SimulateFlow.precise_margin)
     await callback.message.answer(
-        "7️⃣ Текущая валовая маржа (%)?\n\n"
-        "Напишите свой ответ сообщением.\n"
+        "Какая у вас текущая валовая маржа?\n\n"
+        "Напишите процент.\n\n"
         "Например: 35",
         parse_mode="HTML",
         
@@ -2635,8 +2675,9 @@ async def simulate_plus3_advisory(callback: CallbackQuery, state: FSMContext):
         await save_funnel_fields(int(user_id), advisory_band=normalized)
     await state.set_state(SimulateFlow.precise_clients)
     await callback.message.answer(
-        "4️⃣ Количество активных клиентов?\n\n"
-        "Напишите свой ответ сообщением.\n"
+        "Сколько у вас активных клиентов?\n\n"
+        "Под клиентом понимаем юрлицо, которое получает регулярные бухгалтерские услуги.\n\n"
+        "Напишите число.\n\n"
         "Например: 120",
         parse_mode="HTML",
         
@@ -2652,7 +2693,8 @@ async def simulate_precise_clients_skip_text(message: Message, state: FSMContext
         await save_funnel_fields(int(user_id), active_clients_count=0)
     await state.set_state(SimulateFlow.precise_contacts)
     await message.answer(
-        "Поделитесь с нами вашими контактными данными (Ваше имя, Email, Телефон, Компания, Вебсайт)\n",
+        "Оставьте контакты, чтобы мы могли отправить подробную оценку и при необходимости уточнить данные.\n\n"
+        "Понадобятся имя, email, телефон, компания и сайт.",
         parse_mode="HTML",
         reply_markup=simulate_contacts_choice_keyboard(),
     )
@@ -2664,7 +2706,7 @@ async def simulate_contacts_share(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SimulateFlow.precise_contact_name)
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await callback.message.answer(
-        "Введите ваше имя:",
+        "Укажите ваше имя.",
         reply_markup=None,
     )
     await callback.answer()
@@ -2680,7 +2722,7 @@ async def simulate_contact_name(message: Message, state: FSMContext):
     await state.set_state(SimulateFlow.precise_contact_email)
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await message.answer(
-        "Введите ваш Email:",
+        "Укажите email:",
         reply_markup=None,
     )
 
@@ -2697,7 +2739,7 @@ async def simulate_contact_name_skip(callback: CallbackQuery, state: FSMContext)
         await save_funnel_fields(int(user_id), contact_name="")
     await state.set_state(SimulateFlow.precise_contact_email)
     await callback.message.answer(
-        "Введите ваш Email:",
+        "Укажите email:",
         reply_markup=None,
     )
     await callback.answer()
@@ -2713,7 +2755,7 @@ async def simulate_contact_email(message: Message, state: FSMContext):
     await state.set_state(SimulateFlow.precise_contact_phone)
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await message.answer(
-        "Введите ваш телефон:",
+        "Укажите номер телефона:",
         reply_markup=None,
     )
 
@@ -2730,7 +2772,7 @@ async def simulate_contact_email_skip(callback: CallbackQuery, state: FSMContext
         await save_funnel_fields(int(user_id), contact_email="")
     await state.set_state(SimulateFlow.precise_contact_phone)
     await callback.message.answer(
-        "Введите ваш телефон:",
+        "Укажите номер телефона:",
         reply_markup=None,
     )
     await callback.answer()
@@ -2746,7 +2788,7 @@ async def simulate_contact_phone(message: Message, state: FSMContext):
     await state.set_state(SimulateFlow.precise_contact_company)
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await message.answer(
-        "Введите название вашей компании:",
+        "Укажите название компании:",
         reply_markup=None,
     )
 
@@ -2763,7 +2805,7 @@ async def simulate_contact_phone_skip(callback: CallbackQuery, state: FSMContext
         await save_funnel_fields(int(user_id), contact_phone="")
     await state.set_state(SimulateFlow.precise_contact_company)
     await callback.message.answer(
-        "Введите название вашей компании:",
+        "Укажите название компании:",
         reply_markup=None,
     )
     await callback.answer()
@@ -2779,7 +2821,7 @@ async def simulate_contact_company(message: Message, state: FSMContext):
     await state.set_state(SimulateFlow.precise_contact_website)
     force_full_contacts = bool((await state.get_data()).get("force_full_contacts", False))
     await message.answer(
-        "Введите сайт вашей компании:",
+        "Укажите сайт компании, если есть:",
         reply_markup=website_optional_keyboard() if force_full_contacts else None,
     )
 
@@ -2796,7 +2838,7 @@ async def simulate_contact_company_skip(callback: CallbackQuery, state: FSMConte
         await save_profile_field(int(user_id), "company", "")
     await state.set_state(SimulateFlow.precise_contact_website)
     await callback.message.answer(
-        "Введите сайт вашей компании:",
+        "Укажите сайт компании, если есть:",
         reply_markup=None,
     )
     await callback.answer()
@@ -2889,25 +2931,23 @@ async def finalize_precise_assessment(target: Message | CallbackQuery, state: FS
     net_12 = express_result["net_12"] * k
 
     precise_range = f"{format_rub(min(net_6, net_12))} – {format_rub(max(net_6, net_12))} ₽/мес"
+    adjusted_accountant_cost = int(round(int(data["precise_salary"]) * k))
+    adjusted_ai_agent_cost = int(round(adjusted_accountant_cost * 0.2))
+    adjusted_unit_saving = int(adjusted_accountant_cost - adjusted_ai_agent_cost)
     text = (
-        "🎯 <b>Ваши результаты с Aivel:</b>\n\n"
-        "Спасибо — на основе ваших ответов мы уточнили базовую оценку и рассчитали более точный потенциал "
-        "экономии с учётом специфики именно вашей фирмы.\n"
-        "Шаги расчёта через 6 месяцев и через 12 месяцев\n\n"
-        "1. <b>Число высвобождаемых бухгалтеров</b>\n"
-        f"• через 6 месяцев: <b>{released_6}</b>\n"
-        f"• через 12 месяцев: <b>{released_12}</b>\n\n"
-        "2. <b>Сохраняемая месячная зарплатная масса</b>\n"
-        f"• через 6 месяцев: <b>{format_rub(payroll_saved_6)} ₽ в месяц</b>\n"
-        f"• через 12 месяцев: <b>{format_rub(payroll_saved_12)} ₽ в месяц</b>\n\n"
-        "3. <b>Новая стоимость операций на базе искусственного интеллекта</b>\n"
-        f"• через 6 месяцев: <b>{format_rub(ai_cost_6)} ₽ в месяц</b>\n"
-        f"• через 12 месяцев: <b>{format_rub(ai_cost_12)} ₽ в месяц</b>\n\n"
-        "4. <b>Чистая экономия в месяц</b>\n"
-        f"• через 6 месяцев: <b>{format_rub(net_6)} ₽ в месяц</b>\n"
-        f"• через 12 месяцев: <b>{format_rub(net_12)} ₽ в месяц</b>\n\n"
-        f"<i>Итоговый K: {k:.2f}</i>\n"
-        f"<i>Диапазон точной экономии: {precise_range}</i>"
+        "<b>Уточнённый результат</b>\n\n"
+        "С учётом ваших ответов модель скорректировала базовый расчёт.\n\n"
+        "Экономика на 1 штатную единицу:\n\n"
+        f"Бухгалтер — около <b>{format_rub(adjusted_accountant_cost)} ₽/мес.</b>\n"
+        f"ИИ-агент — около <b>{format_rub(adjusted_ai_agent_cost)} ₽/мес.</b>\n"
+        f"Экономия — около <b>{format_rub(adjusted_unit_saving)} ₽/мес.</b>\n\n"
+        "Ориентировочный эффект:\n\n"
+        "<b>Через 6 месяцев</b>\n"
+        f"• до <b>{released_6}</b> единиц регулярной нагрузки\n"
+        f"• около <b>{format_rub(net_6)} ₽</b> экономии в месяц\n\n"
+        "<b>Через 12 месяцев</b>\n"
+        f"• до <b>{released_12}</b> единиц регулярной нагрузки\n"
+        f"• около <b>{format_rub(net_12)} ₽</b> экономии в месяц"
     )
 
     user_id = await get_db_user_id(target)
@@ -2933,13 +2973,13 @@ async def finalize_precise_assessment(target: Message | CallbackQuery, state: FS
     if isinstance(target, CallbackQuery):
         await target.message.answer(text, parse_mode="HTML")
         await target.message.answer(
-            "Планируете ли вы рост в ближайшие 12-24 месяца?",
+            "Планируете ли вы рост в ближайшие 12–24 месяца?\n\nЭто поможет понять, где будет основной эффект: в снижении затрат или в возможности обслуживать больше клиентов без пропорционального роста команды.\n\nВыберите вариант:\n\n• нет;\n• да, умеренный рост 5–20%;\n• да, быстрый рост более 20%.",
             reply_markup=simulate_growth_keyboard(),
         )
     else:
         await target.answer(text, parse_mode="HTML")
         await target.answer(
-            "Планируете ли вы рост в ближайшие 12-24 месяца?",
+            "Планируете ли вы рост в ближайшие 12–24 месяца?\n\nЭто поможет понять, где будет основной эффект: в снижении затрат или в возможности обслуживать больше клиентов без пропорционального роста команды.\n\nВыберите вариант:\n\n• нет;\n• да, умеренный рост 5–20%;\n• да, быстрый рост более 20%.",
             reply_markup=simulate_growth_keyboard(),
         )
 
@@ -2957,7 +2997,7 @@ async def simulate_post_growth(callback: CallbackQuery, state: FSMContext):
         await save_funnel_fields(int(user_id), growth_band=value)
     await state.set_state(SimulateFlow.precise_mna)
     await callback.message.answer(
-        "Рассматриваете ли вы M&A / привлечение инвестиций?",
+        "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.\n\nВыберите вариант:\n\n• да;\n• нет.",
         reply_markup=simulate_mna_keyboard(),
     )
     await callback.answer()
@@ -2976,7 +3016,7 @@ async def simulate_post_mna(callback: CallbackQuery, state: FSMContext):
         await save_funnel_fields(int(user_id), mna_interest=value)
     await state.set_state(SimulateFlow.precise_wait_excel)
     await callback.message.answer(
-        "🎯 Серьёзно рассматриваете внедрение? Загрузите Excel — получите полный бизнес-кейс от нашей команды.",
+        "Хотите получить более точный бизнес-кейс?\n\nЗаполните Excel-опросник — мы подготовим подробный расчёт эффекта от внедрения ИИ по вашим данным.",
         reply_markup=simulate_deep_assessment_keyboard(),
     )
     await callback.answer()
@@ -3038,7 +3078,7 @@ async def simulate_wait_excel_upload(message: Message, state: FSMContext):
         await state.update_data(db_user_id=user_id, force_full_contacts=True)
         await state.set_state(SimulateFlow.precise_contact_name)
         await message.answer(MISSING_PERSONAL_DATA_TEXT)
-        await message.answer("Введите ваше имя:")
+        await message.answer("Укажите ваше имя.")
         return
 
     await return_to_base_state(message, state, THANKS_DEEP_TEXT)
