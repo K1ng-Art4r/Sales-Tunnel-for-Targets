@@ -824,6 +824,23 @@ async def delete_message_safe(message: Message):
         return 
 
 
+async def finish_simulate_contact_collection(message: Message, state: FSMContext, website: str):
+    data = await state.get_data()
+    await state.update_data(
+        precise_contacts=(
+            f"name={data.get('contact_name', '')}|email={data.get('contact_email', '')}|"
+            f"phone={data.get('contact_phone', '')}|company={data.get('contact_company', '')}|"
+            f"website={website}"
+        ),
+    )
+    if (await state.get_data()).get("force_full_contacts", False):
+        await return_to_base_state(message, state, THANKS_DEEP_TEXT)
+        return
+
+    await state.set_state(SimulateFlow.precise_standardization)
+    await ask_precise_standardization_question(message)
+
+
 async def start_meeting_booking(message: Message, state: FSMContext):
     if not calendly_is_configured():
         await message.answer(
@@ -853,7 +870,7 @@ async def send_excel_and_wait_for_user(callback: CallbackQuery, state: FSMContex
         await callback.answer("Excel-файл пока не найден", show_alert=True)
         return
 
-    await callback.message.answer(SIMULATE_PRO_TEXT)
+    await callback.message.answer(SIMULATE_PRO_TEXT, parse_mode="HTML")
     await callback.message.answer_document(
         document=FSInputFile(excel_path),
         caption="Excel-опросник для подробной оценки",
@@ -952,7 +969,7 @@ async def tool_nav_cancel(message: Message, state: FSMContext):
     await return_to_base_state(message, state, THANKS_TOOL_TEXT)
 
 
-@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__, *MeetingBookingFlow.__all_states__)), F.text == "⏭ Пропустить")
+@router.message((StateFilter(*SimulateFlow.__all_states__, *ValuationFlow.__all_states__, *MeetingBookingFlow.__all_states__)), F.text.in_({"⏭ Пропустить", "Пропустить"}))
 async def tool_nav_skip(message: Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state == SimulateFlow.express_accountants.state:
@@ -1041,6 +1058,7 @@ async def tool_nav_skip(message: Message, state: FSMContext):
             "доля долгосрочных договоров, уровень списаний и долговая нагрузка. Чтобы учесть эти факторы и "
             "получить более точный результат, мы можем задать ещё несколько уточняющих вопросов.\n\n"
             "Готовы пройти более детальную оценку и ответить на несколько дополнительных вопросов?",
+            parse_mode="HTML",
             reply_markup=valuation_continue_keyboard(),
         )
         return
@@ -1196,6 +1214,45 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(SimulateFlow.precise_standardization)
         await ask_precise_standardization_question(message)
         return
+    if current_state == SimulateFlow.precise_contact_name.state:
+        await state.update_data(contact_name="")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), contact_name="")
+        await state.set_state(SimulateFlow.precise_contact_email)
+        await message.answer("Укажите email:")
+        return
+    if current_state == SimulateFlow.precise_contact_email.state:
+        await state.update_data(contact_email="")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), contact_email="")
+        await state.set_state(SimulateFlow.precise_contact_phone)
+        await message.answer("Укажите номер телефона:")
+        return
+    if current_state == SimulateFlow.precise_contact_phone.state:
+        await state.update_data(contact_phone="")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_funnel_fields(int(user_id), contact_phone="")
+        await state.set_state(SimulateFlow.precise_contact_company)
+        await message.answer("Укажите название компании:")
+        return
+    if current_state == SimulateFlow.precise_contact_company.state:
+        await state.update_data(contact_company="")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_profile_field(int(user_id), "company", "")
+        await state.set_state(SimulateFlow.precise_contact_website)
+        await message.answer("Укажите сайт компании, если есть:")
+        return
+    if current_state == SimulateFlow.precise_contact_website.state:
+        await state.update_data(contact_website="")
+        user_id = (await state.get_data()).get("db_user_id")
+        if user_id:
+            await save_profile_field(int(user_id), "company_website", "")
+        await finish_simulate_contact_collection(message, state, "")
+        return
     if current_state == SimulateFlow.precise_margin.state:
         await state.update_data(precise_margin=35)
         user_id = (await state.get_data()).get("db_user_id")
@@ -1211,7 +1268,7 @@ async def tool_nav_skip(message: Message, state: FSMContext):
         await state.set_state(SimulateFlow.precise_mna)
         await message.answer(
             "Приняли среднее значение: умеренный рост 5–20%.\n\n"
-            "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.\n\nВыберите вариант:\n\n• да;\n• нет.",
+            "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.",
             reply_markup=simulate_mna_keyboard(),
         )
         return
@@ -1332,7 +1389,7 @@ async def tool_nav_back(message: Message, state: FSMContext):
     if current_state == SimulateFlow.precise_wait_excel.state:
         await state.set_state(SimulateFlow.precise_mna)
         await message.answer(
-            "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.\n\nВыберите вариант:\n\n• да;\n• нет.",
+            "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.",
             reply_markup=simulate_mna_keyboard(),
         )
         return
@@ -1378,6 +1435,7 @@ async def tool_nav_back(message: Message, state: FSMContext):
             "доля долгосрочных договоров, уровень списаний и долговая нагрузка. Чтобы учесть эти факторы и "
             "получить более точный результат, мы можем задать ещё несколько уточняющих вопросов.\n\n"
             "Готовы пройти более детальную оценку и ответить на несколько дополнительных вопросов?",
+            parse_mode="HTML",
             reply_markup=valuation_continue_keyboard(),
         )
         return
@@ -1923,7 +1981,7 @@ async def valuation_mode_excel(callback: CallbackQuery, state: FSMContext):
     user_id = await get_db_user_id(callback)
     cancel_valuation_idle_task(user_id)
     await callback.answer()
-    await callback.message.answer(VALUATION_EXCEL_TEXT, reply_markup=valuation_excel_offer_keyboard())
+    await callback.message.answer(VALUATION_EXCEL_TEXT, parse_mode="HTML", reply_markup=valuation_excel_offer_keyboard())
 
 
 @router.callback_query(F.data == "valuation:mode:faq")
@@ -2344,7 +2402,7 @@ async def valuation_send_precise_result(target: Message | CallbackQuery, state: 
         f"{comment}",
         parse_mode="HTML",
     )
-    await message.answer(VALUATION_EXCEL_TEXT, reply_markup=valuation_excel_offer_keyboard())
+    await message.answer(VALUATION_EXCEL_TEXT, parse_mode="HTML", reply_markup=valuation_excel_offer_keyboard())
     await schedule_valuation_idle_followup(message, state, user_id)
 
 
@@ -2997,7 +3055,7 @@ async def simulate_post_growth(callback: CallbackQuery, state: FSMContext):
         await save_funnel_fields(int(user_id), growth_band=value)
     await state.set_state(SimulateFlow.precise_mna)
     await callback.message.answer(
-        "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.\n\nВыберите вариант:\n\n• да;\n• нет.",
+        "Рассматриваете ли вы сделки или привлечение инвестиций?\n\nНапример: покупку других бухгалтерских компаний, объединение с партнёром или продажу доли инвестору.",
         reply_markup=simulate_mna_keyboard(),
     )
     await callback.answer()
