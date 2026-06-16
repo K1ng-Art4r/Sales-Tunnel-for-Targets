@@ -290,6 +290,15 @@ def is_valid_support_email(value: str) -> bool:
     return bool(MEETING_EMAIL_RE.match(value.strip().lower()))
 
 
+def has_letter(value: str) -> bool:
+    return bool(re.search(r"[A-Za-zА-Яа-яЁё]", value))
+
+
+def is_valid_text_value(value: str) -> bool:
+    normalized = " ".join(value.strip().split())
+    return bool(normalized) and has_letter(normalized)
+
+
 def parse_positive_int(raw_value: str) -> int | None:
     normalized = raw_value.replace(" ", "").replace(",", "").replace("_", "")
     if not normalized.isdigit():
@@ -2772,7 +2781,11 @@ async def simulate_contacts_share(callback: CallbackQuery, state: FSMContext):
 
 @router.message(SimulateFlow.precise_contact_name, F.text)
 async def simulate_contact_name(message: Message, state: FSMContext):
-    name = message.text.strip()
+    name = " ".join(message.text.strip().split())
+    if not is_valid_support_name(name):
+        await message.answer("Пожалуйста, укажите имя текстом. Например: Евгений")
+        return
+
     await state.update_data(contact_name=name)
     user_id = (await state.get_data()).get("db_user_id")
     if user_id:
@@ -2805,7 +2818,11 @@ async def simulate_contact_name_skip(callback: CallbackQuery, state: FSMContext)
 
 @router.message(SimulateFlow.precise_contact_email, F.text)
 async def simulate_contact_email(message: Message, state: FSMContext):
-    email = message.text.strip()
+    email = message.text.strip().lower()
+    if not is_valid_support_email(email):
+        await message.answer("Пожалуйста, укажите корректный email. Например: name@company.com")
+        return
+
     await state.update_data(contact_email=email)
     user_id = (await state.get_data()).get("db_user_id")
     if user_id:
@@ -2839,6 +2856,10 @@ async def simulate_contact_email_skip(callback: CallbackQuery, state: FSMContext
 @router.message(SimulateFlow.precise_contact_phone, F.text)
 async def simulate_contact_phone(message: Message, state: FSMContext):
     phone = message.text.strip()
+    if not is_valid_support_phone(phone):
+        await message.answer("Пожалуйста, укажите корректный номер телефона. Например: +7 999 123-45-67")
+        return
+
     await state.update_data(contact_phone=phone)
     user_id = (await state.get_data()).get("db_user_id")
     if user_id:
@@ -2871,7 +2892,11 @@ async def simulate_contact_phone_skip(callback: CallbackQuery, state: FSMContext
 
 @router.message(SimulateFlow.precise_contact_company, F.text)
 async def simulate_contact_company(message: Message, state: FSMContext):
-    company = message.text.strip()
+    company = " ".join(message.text.strip().split())
+    if not is_valid_text_value(company):
+        await message.answer("Пожалуйста, укажите название компании текстом. Например: ООО Аивел")
+        return
+
     await state.update_data(contact_company=company)
     user_id = (await state.get_data()).get("db_user_id")
     if user_id:
