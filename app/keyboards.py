@@ -25,12 +25,12 @@ def persistent_main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="Меню")],
-            [KeyboardButton(text="Калькулятор экономии")],
-            [KeyboardButton(text="Сделка и рост")],
+            [KeyboardButton(text="Оценить эффект от внедрения ИИ")],
+            [KeyboardButton(text="Партнёрство и сделка")],
         ],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="Выберите раздел",
+        input_field_placeholder="Меню",
     )
 
 
@@ -42,7 +42,7 @@ def tool_navigation_keyboard() -> ReplyKeyboardMarkup:
         ],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="Управление инструментом",
+        input_field_placeholder="Управление расчётом",
     )
 
 
@@ -51,13 +51,13 @@ def gift_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🎁 Анализатор клиентских чатов",
+                    text="Анализ клиентских чатов",
                     callback_data="gift:chat_analyzer",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="👨‍🏫 Присоединяйтесь прямо сейчас",
+                    text="Курс с Натальей Бланкет",
                     callback_data="support_program:join",
                 )
             ],
@@ -80,8 +80,8 @@ def support_program_navigation_keyboard() -> ReplyKeyboardMarkup:
 def support_program_business_stage_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Вы владелец фирмы?", callback_data="support_program:stage:owner")],
-            [InlineKeyboardButton(text="Хотите открыть собственную фирму?", callback_data="support_program:stage:want_to_open")],
+            [InlineKeyboardButton(text="У вас уже есть бухгалтерская компания?", callback_data="support_program:stage:owner")],
+            [InlineKeyboardButton(text="Вы планируете запустить бухгалтерский аутсорсинг?", callback_data="support_program:stage:want_to_open")],
         ]
     )
 
@@ -424,11 +424,11 @@ def valuation_idle_followup_keyboard() -> InlineKeyboardMarkup:
 def valuation_faq_topics_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Оценка и цена", callback_data="valuation:faq:topic:price")],
-            [InlineKeyboardButton(text="Кто за что отвечает", callback_data="valuation:faq:topic:roles")],
-            [InlineKeyboardButton(text="Как проходит сделка", callback_data="valuation:faq:topic:process")],
+            [InlineKeyboardButton(text="Оценка бизнеса", callback_data="valuation:faq:topic:price")],
+            [InlineKeyboardButton(text="Роли и управление", callback_data="valuation:faq:topic:roles")],
+            [InlineKeyboardButton(text="Этапы сделки", callback_data="valuation:faq:topic:process")],
             [InlineKeyboardButton(text="Внедрение ИИ", callback_data="valuation:faq:topic:ai")],
-            [InlineKeyboardButton(text="Что меняется в фирме", callback_data="valuation:faq:topic:changes")],
+            [InlineKeyboardButton(text="Изменения для фирмы", callback_data="valuation:faq:topic:changes")],
             [InlineKeyboardButton(text="Юридические вопросы", callback_data="valuation:faq:topic:legal")],
         ]
     )
@@ -440,14 +440,14 @@ def valuation_faq_question_numbers_keyboard(topic: str, total: int) -> InlineKey
         rows.append(
             [InlineKeyboardButton(text=f"Вопрос {idx}", callback_data=f"valuation:faq:{topic}:q{idx}")]
         )
-    rows.append([InlineKeyboardButton(text="↩️ К темам", callback_data="valuation:faq:topics")])
+    rows.append([InlineKeyboardButton(text="↩️ К разделам", callback_data="valuation:faq:topics")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def calendly_meeting_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📅 Открыть Calendly", url=_safe_calendly_link())],
+            [InlineKeyboardButton(text="📅 Открыть календарь", url=_safe_calendly_link())],
         ]
     )
 
