@@ -198,5 +198,4 @@ def format_events_message(events: list[EventItem]) -> str:
                 f"🤝 <a href=\"{safe_calendly}\">Запись на личную встречу на этом мероприятии (Calendly)</a>"
             )
 
-    lines.extend(["", "📌 Если хотите, подскажу, на какое событие лучше идти первым."])
     return "\n".join(lines)
