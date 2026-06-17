@@ -208,24 +208,7 @@ git remote set-url azure https://dev.azure.com/<organization>/<project>/_git/<re
 git remote -v
 ```
 
-4. Если Azure DevOps не принимает логин/пароль, подготовить HTTPS-аутентификацию через Personal Access Token (PAT). Для push по HTTPS в Azure DevOps обычно нужен PAT, а не пароль от аккаунта.
-
-Создайте PAT в Azure DevOps: `User settings` → `Personal access tokens` → `New Token`. Минимальные права: `Code` → `Read & write`.
-
-Если Git на macOS пишет `git: 'credential-manager-core' is not a git command`, значит в настройках указан старый credential helper. Переключите helper на системную связку ключей macOS:
-
-```bash
-git config --global --unset credential.helper
-git config --global credential.helper osxkeychain
-```
-
-Очистите старые сохранённые учётные данные для Azure DevOps в `Keychain Access` / «Связка ключей» или выполните:
-
-```bash
-printf "protocol=https\nhost=woolman.visualstudio.com\n" | git credential-osxkeychain erase
-```
-
-5. Отправить текущую GitHub-версию в ветку Azure DevOps `Deploy_from_github`. В поле username можно указать e-mail/логин Azure DevOps, а в поле password вставить PAT:
+4. Отправить текущую GitHub-версию в ветку Azure DevOps `Deploy_from_github`:
 
 ```bash
 git push azure main:Deploy_from_github
@@ -237,103 +220,11 @@ git push azure main:Deploy_from_github
 git push azure <local_branch>:Deploy_from_github
 ```
 
-Если после этого аутентификация всё ещё падает, проверьте, что PAT не истёк, имеет права `Code: Read & write`, а ваш пользователь добавлен в проект Azure DevOps и имеет доступ к репозиторию.
+5. Если ветка `Deploy_from_github` в Azure DevOps защищена или уже содержит другую историю, сначала создайте pull request в Azure DevOps из вашей ветки в `Deploy_from_github`. Не используйте force push без согласования с командой.
 
-Если push отклонён с сообщением `fetch first`, значит в Azure DevOps в ветке `Deploy_from_github` уже есть коммиты, которых нет локально. Сначала заберите remote-ветку и объедините её с локальной историей:
+6. В Azure DevOps настройте переменные окружения/секреты для контейнера или pipeline: `BOT_TOKEN`, `DATABASE_URL`, параметры Google Sheets, Calendly и остальные значения из раздела установки.
 
-```bash
-git fetch azure Deploy_from_github
-git checkout main
-git rebase azure/Deploy_from_github
-git push azure main:Deploy_from_github
-```
-
-Если при rebase появятся конфликты, исправьте файлы, затем выполните:
-
-```bash
-git add <исправленные_файлы>
-git rebase --continue
-git push azure main:Deploy_from_github
-```
-
-Если Azure DevOps-ветку нужно именно перезаписать текущей GitHub-версией, делайте это только после согласования с командой, потому что remote-коммиты могут быть потеряны. Если локально уже начался merge/rebase и Git пишет `needs merge`, можно жёстко вернуть локальную ветку `main` к состоянию GitHub и затем жёстко отправить её в Azure DevOps:
-
-```bash
-git merge --abort 2>/dev/null || true
-git rebase --abort 2>/dev/null || true
-git fetch origin main
-git checkout -B main origin/main
-git clean -fd
-git push --force azure main:Deploy_from_github
-```
-
-6. Если ветка `Deploy_from_github` в Azure DevOps защищена или уже содержит другую историю, сначала создайте pull request в Azure DevOps из вашей ветки в `Deploy_from_github`. Не используйте force push без согласования с командой.
-
-7. В Azure DevOps настройте переменные окружения/секреты для контейнера или pipeline. Файл `.env` не нужно коммитить и не нужно класть в Docker-образ: значения задаются как secret variables в Azure DevOps Pipeline или как environment variables / application settings в сервисе, где запускается контейнер. Минимально обязательны:
-
-- `BOT_TOKEN`
-- `DATABASE_URL`
-
-Дополнительно задайте переменные интеграций, которые используются в окружении:
-
-- `CALENDLY_API_TOKEN`
-- `CALENDLY_EVENT_TYPE_URI`
-- `CALENDLY_PUBLIC_LINK`
-- `MEETING_TIMEZONE`
-- `GOOGLE_SHEETS_API_KEY`
-- `GOOGLE_SHEETS_SPREADSHEET_ID`
-- `GOOGLE_SHEETS_RANGE`
-- `CONTENT_SHEETS_API_KEY`
-- `CONTENT_SHEETS_SPREADSHEET_ID`
-- `CONTENT_SHEETS_RANGE`
-- `CONTENT_SCHEDULER_TIMEZONE`
-- `EXPORT_SHEETS_API_KEY`
-- `EXPORT_SHEETS_BEARER_TOKEN`
-- `EXPORT_SHEETS_OAUTH_CLIENT_ID`
-- `EXPORT_SHEETS_OAUTH_CLIENT_SECRET`
-- `EXPORT_SHEETS_OAUTH_REFRESH_TOKEN`
-- `EXPORT_SHEETS_OAUTH_TOKEN_URL`
-- `EXPORT_SHEETS_SERVICE_ACCOUNT_EMAIL`
-- `EXPORT_SHEETS_SERVICE_ACCOUNT_PRIVATE_KEY`
-- `EXPORT_SHEETS_SERVICE_ACCOUNT_TOKEN_URI`
-- `EXPORT_SHEETS_SPREADSHEET_ID`
-- `EXPORT_SHEETS_RANGE`
-- `EXPORT_SYNC_INTERVAL_MINUTES`
-
-Если используется Azure Pipeline, секреты можно добавить в `Pipelines` → нужный pipeline → `Edit` → `Variables` → `New variable` → включить `Keep this value secret`. Если контейнер запускается в Azure App Service / Container Apps, эти же значения задаются в настройках приложения как environment variables.
-
-### Как добавить переменные руками в Azure
-
-Вариант зависит от того, где фактически запускается контейнер.
-
-#### Azure DevOps Pipeline
-
-1. Откройте Azure DevOps → `Pipelines`.
-2. Выберите нужный pipeline.
-3. Нажмите `Edit`.
-4. Откройте `Variables`.
-5. Нажмите `New variable`.
-6. В `Name` укажите имя переменной, например `BOT_TOKEN`.
-7. В `Value` вставьте значение из локального `.env`.
-8. Для токенов, паролей, ключей и `DATABASE_URL` включите `Keep this value secret`.
-9. Повторите для остальных переменных и сохраните pipeline.
-
-#### Azure App Service
-
-1. Откройте Azure Portal → нужный `App Service`.
-2. Перейдите в `Settings` → `Environment variables` или `Configuration`.
-3. В разделе application settings добавьте `Name` и `Value` для каждой переменной.
-4. Сохраните изменения и перезапустите приложение, если Azure не предложит сделать это автоматически.
-
-#### Azure Container Apps
-
-1. Откройте Azure Portal → нужный `Container App`.
-2. Перейдите в `Secrets` и добавьте секреты для чувствительных значений: `BOT_TOKEN`, `DATABASE_URL`, API-ключи и OAuth-токены.
-3. Перейдите в настройки контейнера / revision.
-4. В `Environment variables` добавьте переменные и для секретных значений выберите reference на созданный secret.
-5. Сохраните изменения и создайте новую revision.
-
-8. Для проверки Docker-сборки в Azure Pipeline можно использовать базовые команды:
+7. Для проверки Docker-сборки в Azure Pipeline можно использовать базовые команды:
 
 ```bash
 docker build -t sales-tunnel-bot .

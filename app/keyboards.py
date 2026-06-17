@@ -25,12 +25,12 @@ def persistent_main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="Меню")],
-            [KeyboardButton(text="Калькулятор экономии")],
-            [KeyboardButton(text="Сделка и рост")],
+            [KeyboardButton(text="Оценить эффект от внедрения ИИ")],
+            [KeyboardButton(text="Партнёрство и сделка")],
         ],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="Выберите раздел",
+        input_field_placeholder="Меню",
     )
 
 
@@ -42,7 +42,7 @@ def tool_navigation_keyboard() -> ReplyKeyboardMarkup:
         ],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="Управление инструментом",
+        input_field_placeholder="Управление расчётом",
     )
 
 
@@ -51,13 +51,13 @@ def gift_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🎁 Анализатор клиентских чатов",
+                    text="Анализ клиентских чатов",
                     callback_data="gift:chat_analyzer",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="👨‍🏫 Присоединяйтесь прямо сейчас",
+                    text="Курс с Натальей Бланкет",
                     callback_data="support_program:join",
                 )
             ],
@@ -80,8 +80,8 @@ def support_program_navigation_keyboard() -> ReplyKeyboardMarkup:
 def support_program_business_stage_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Вы владелец фирмы?", callback_data="support_program:stage:owner")],
-            [InlineKeyboardButton(text="Хотите открыть собственную фирму?", callback_data="support_program:stage:want_to_open")],
+            [InlineKeyboardButton(text="У вас уже есть бухгалтерская компания?", callback_data="support_program:stage:owner")],
+            [InlineKeyboardButton(text="Вы планируете запустить бухгалтерский аутсорсинг?", callback_data="support_program:stage:want_to_open")],
         ]
     )
 
@@ -197,8 +197,8 @@ def simulate_growth_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Нет", callback_data="simulate:post:growth:none")],
-            [InlineKeyboardButton(text="Да, обычный рост +5–20%", callback_data="simulate:post:growth:normal")],
-            [InlineKeyboardButton(text="Да, быстрый рост >20%", callback_data="simulate:post:growth:fast")],
+            [InlineKeyboardButton(text="Да, умеренный рост 5–20%", callback_data="simulate:post:growth:normal")],
+            [InlineKeyboardButton(text="Да, быстрый рост более 20%", callback_data="simulate:post:growth:fast")],
         ]
     )
 
@@ -308,7 +308,7 @@ def valuation_mode_keyboard() -> InlineKeyboardMarkup:
 def valuation_intro_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Поехали⚡", callback_data="valuation:express:start")],
+            [InlineKeyboardButton(text="Начать оценку", callback_data="valuation:express:start")],
             [InlineKeyboardButton(text="↩️ Назад", callback_data="valuation:back")],
         ]
     )
@@ -317,19 +317,19 @@ def valuation_intro_keyboard() -> InlineKeyboardMarkup:
 def valuation_share_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="<40%", callback_data="valuation:share:lt40")],
-            [InlineKeyboardButton(text="40-60%", callback_data="valuation:share:40_60")],
-            [InlineKeyboardButton(text="60-80%", callback_data="valuation:share:60_80")],
-            [InlineKeyboardButton(text=">80%", callback_data="valuation:share:gt80")],
+            [InlineKeyboardButton(text="Менее 40%", callback_data="valuation:share:lt40")],
+            [InlineKeyboardButton(text="40–60%", callback_data="valuation:share:40_60")],
+            [InlineKeyboardButton(text="60–80%", callback_data="valuation:share:60_80")],
+            [InlineKeyboardButton(text="Более 80%", callback_data="valuation:share:gt80")],
             [
                 InlineKeyboardButton(
-                    text="Я не знаю, но это основная часть нашего бизнеса",
+                    text="Точную долю не знаем, но это основное направление",
                     callback_data="valuation:share:unknown_main",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="Я не знаю, но это незначительная часть нашего бизнеса",
+                    text="Точную долю не знаем, но это небольшая часть выручки",
                     callback_data="valuation:share:unknown_small",
                 )
             ],
@@ -383,9 +383,9 @@ def valuation_q6_share_keyboard() -> InlineKeyboardMarkup:
 def valuation_q8_automation_level_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Нет — работаем в 1С и Excel", callback_data="valuation:q8:none")],
-            [InlineKeyboardButton(text="Частично — макросы, автовыгрузки, таск-менеджер", callback_data="valuation:q8:partial")],
-            [InlineKeyboardButton(text="Да — RPA, боты или AI-решения", callback_data="valuation:q8:advanced")],
+            [InlineKeyboardButton(text="Не используем, работаем в 1С и Excel", callback_data="valuation:q8:none")],
+            [InlineKeyboardButton(text="Частично используем автоматизацию (макросы, автовыгрузки, таск-менеджер)", callback_data="valuation:q8:partial")],
+            [InlineKeyboardButton(text="Активно используем RPA, ботов или AI-решения", callback_data="valuation:q8:advanced")],
         ]
     )
 
@@ -429,11 +429,11 @@ def valuation_idle_followup_keyboard() -> InlineKeyboardMarkup:
 def valuation_faq_topics_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Оценка и цена", callback_data="valuation:faq:topic:price")],
-            [InlineKeyboardButton(text="Кто за что отвечает", callback_data="valuation:faq:topic:roles")],
-            [InlineKeyboardButton(text="Как проходит сделка", callback_data="valuation:faq:topic:process")],
+            [InlineKeyboardButton(text="Оценка бизнеса", callback_data="valuation:faq:topic:price")],
+            [InlineKeyboardButton(text="Роли и управление", callback_data="valuation:faq:topic:roles")],
+            [InlineKeyboardButton(text="Этапы сделки", callback_data="valuation:faq:topic:process")],
             [InlineKeyboardButton(text="Внедрение ИИ", callback_data="valuation:faq:topic:ai")],
-            [InlineKeyboardButton(text="Что меняется в фирме", callback_data="valuation:faq:topic:changes")],
+            [InlineKeyboardButton(text="Изменения для фирмы", callback_data="valuation:faq:topic:changes")],
             [InlineKeyboardButton(text="Юридические вопросы", callback_data="valuation:faq:topic:legal")],
         ]
     )
@@ -445,14 +445,14 @@ def valuation_faq_question_numbers_keyboard(topic: str, total: int) -> InlineKey
         rows.append(
             [InlineKeyboardButton(text=f"Вопрос {idx}", callback_data=f"valuation:faq:{topic}:q{idx}")]
         )
-    rows.append([InlineKeyboardButton(text="↩️ К темам", callback_data="valuation:faq:topics")])
+    rows.append([InlineKeyboardButton(text="↩️ К разделам", callback_data="valuation:faq:topics")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def calendly_meeting_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📅 Открыть Calendly", url=_safe_calendly_link())],
+            [InlineKeyboardButton(text="📅 Открыть календарь", url=_safe_calendly_link())],
         ]
     )
 
