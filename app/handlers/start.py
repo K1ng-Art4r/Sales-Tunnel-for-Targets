@@ -128,6 +128,7 @@ CHAT_ANALYZER_GIFT_TEXT = (
     "по всей выборке."
 )
 CHAT_ANALYZER_PDF_PATH = PROJECT_ROOT / "app" / "assets" / "Анализ_качества_переписки_с_клиентом.pdf"
+AIVEL_ACCOUNTING_PRESENTATION_PATH = PROJECT_ROOT / "app" / "assets" / "Aivel AI бухгалтерия.pdf"
 
 TOOL_PLACEHOLDER_TEXT = (
     "Инструмент пока в режиме заглушки."
@@ -1645,6 +1646,20 @@ async def book_meeting(callback: CallbackQuery, state: FSMContext):
         reply_markup=meeting_registration_check_keyboard(),
     )
     await callback.answer()
+
+
+@router.callback_query(F.data == "menu:products")
+async def send_products_presentation(callback: CallbackQuery):
+    await callback.answer()
+
+    if not AIVEL_ACCOUNTING_PRESENTATION_PATH.exists():
+        await callback.message.answer("⚠️ Презентация временно недоступна. Попробуйте позже.")
+        return
+
+    await callback.message.answer_document(
+        FSInputFile(AIVEL_ACCOUNTING_PRESENTATION_PATH),
+        caption="🧩 Продукты и услуги Aivel",
+    )
 
 
 @router.callback_query(F.data == "stub:events")
