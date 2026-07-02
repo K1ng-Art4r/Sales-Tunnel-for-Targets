@@ -28,8 +28,25 @@ class EventItem:
 
 def _normalize_header(value: str) -> str:
     normalized = value.strip().lower()
+    lookalike_map = str.maketrans(
+        {
+            "а": "a",
+            "е": "e",
+            "о": "o",
+            "р": "p",
+            "с": "c",
+            "у": "y",
+            "к": "k",
+            "х": "x",
+            "м": "m",
+            "т": "t",
+            "в": "b",
+            "н": "h",
+        }
+    )
+    normalized = normalized.translate(lookalike_map)
     normalized = normalized.replace("&", "and")
-    for char in (" ", "_", "-", "?", "(", ")", ":", "/"):
+    for char in (" ", "_", "-", "?", "(", ")", ":", "/", "#"):
         normalized = normalized.replace(char, "")
     return normalized
 
@@ -90,8 +107,16 @@ def fetch_events(spreadsheet_id: str, api_key: str, sheet_range: str, timeout: i
         where_idx = _first_present(header_map, "where", "location", "место")
         description_idx = _first_present(header_map, "supporttext", "description", "описание")
         link_idx = _first_present(header_map, "link", "url", "registrationlink", "eventlink", "linktoevent")
-        active_idx = _first_present(header_map, "active", "show")
-        calendly_idx = _first_present(header_map, "calendly", "calendlylink", "meetinglink")
+        active_idx = _first_present(header_map, "active", "show", "activeshow")
+        calendly_idx = _first_present(
+            header_map,
+            "calendly",
+            "calendlylink",
+            "linktocalendly",
+            "meetinglink",
+            "календли",
+            "ссылкакалендли",
+        )
 
         for row in rows[1:]:
             if not row:

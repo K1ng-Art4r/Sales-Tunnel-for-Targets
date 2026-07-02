@@ -1,10 +1,6 @@
 from aiogram.fsm.state import State, StatesGroup
 
 
-class ToolConsentFlow(StatesGroup):
-    waiting = State()
-
-
 class SimulateFlow(StatesGroup):
     mode_select = State()
     express_revenue = State()
@@ -30,3 +26,25 @@ class MeetingBookingFlow(StatesGroup):
     waiting_email = State()
     waiting_date = State()
     waiting_custom_time = State()
+
+
+class ValuationFlow(StatesGroup):
+    mode_select = State()
+    express_revenue = State()
+    express_share = State()
+    express_profitability = State()
+    express_continue = State()
+    precise_clients_total = State()
+    precise_clients_key = State()
+    precise_top5_share = State()
+    precise_headcount = State()
+    precise_automation_level = State()
+    precise_automation_tools = State()
+    precise_post_result = State()
+
+
+class SupportProgramFlow(StatesGroup):
+    contact_name = State()
+    contact_phone = State()
+    contact_email = State()
+    business_stage = State()
